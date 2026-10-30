@@ -1,16 +1,16 @@
-
 # Corporate Logistics Chat
 
 Corporate logistics chat — university group project.
 
 ## Team
 
-- Sérgio Vieira ([@EstiveJobson](https://github.com/EstiveJobson))
-- [@piresxp](https://github.com/piresxp)
-- [@bernardomam](https://github.com/bernardomam)
-- [@joaogabriel2405](https://github.com/joaogabriel2405)
-- [@igorsales-dev](https://github.com/igorsales-dev)
-- [@joaovictorlordelo-dev](https://github.com/joaovictorlordelo-dev) 
+- [@bernardomam](https://github.com/bernardomam) - PO
+- [@piresxp](https://github.com/piresxp) - Tech Lead
+- [@EstiveJobson](https://github.com/EstiveJobson) - UX/UI Designer
+- [@igorsales-dev](https://github.com/igorsales-dev) - Analista de SQA
+- [@joaogabriel2405](https://github.com/joaogabriel2405) - Desenvolvedor
+- [@joaovictorlordelo-dev](https://github.com/joaovictorlordelo-dev) - Desenvolvedor
+- [@guilhermefalcao2026](https://github.com/guilhermefalcao2026) - Desenvolvedor
 ## Getting started
 
 TBD
