@@ -1,118 +1,55 @@
-"use client";
+import Link from "next/link";
 
-import { useState } from "react";
-
-export default function LoginPage() {
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-
+export default function SplashPage() {
   return (
-    <main className="min-h-screen bg-white flex justify-center">
-      <div className="w-full max-w-sm px-6 pt-14 pb-10 flex flex-col items-center">
-        <div className="w-[72px] h-[72px] rounded-[20px] bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-300/50">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 3C7 3 3 6.6 3 11c0 2.2 1 4.2 2.7 5.6L5 21l4.2-2c.9.2 1.8.3 2.8.3 5 0 9-3.6 9-8.3S17 3 12 3z"
-              fill="white"
-            />
-            <path
-              d="M8.5 11.3l2.4 2.4 4.6-4.6"
-              stroke="#4338ca"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#0a1a6e] via-[#0d2090] to-[#1530b8] flex justify-center">
+      <div className="pointer-events-none absolute -left-32 top-1/3 h-[420px] w-[420px] rounded-full bg-[#1d3fd8]/50 blur-3xl" />
+      <div className="pointer-events-none absolute -right-40 top-[55%] h-[480px] w-[480px] rounded-full bg-[#2a4df0]/40 blur-3xl" />
+      <div className="pointer-events-none absolute -left-20 bottom-[-120px] h-[380px] w-[520px] rounded-[50%] bg-[#0a1a6e]/70 blur-2xl" />
+      <div className="pointer-events-none absolute -right-24 -top-24 h-[300px] w-[300px] rounded-full bg-[#2f5bff]/25 blur-3xl" />
 
-        <h1 className="mt-3 text-3xl tracking-tight">
-          <span className="font-semibold text-[#1e2a78]">call</span><span className="font-extrabold text-[#3b3fe0]">ZUP</span>
-        </h1>
-
-        <h2 className="mt-10 text-xl font-bold text-[#1e2a78]">
-          Bem-vindo de volta!
-        </h2>
-        <p className="mt-1 text-xs text-slate-600">Faça login para continuar</p>
-
-        <div className="mt-7 w-full space-y-3">
-          <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm focus-within:border-[#3b3fe0]">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#475569"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="5" width="18" height="14" rx="2" />
-              <path d="M3 7l9 6 9-6" />
-            </svg>
-            <input
-              type="email"
-              placeholder="seuemail@empresa.com"
-              className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-700 outline-none"
-            />
-          </label>
-
-          <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm focus-within:border-[#3b3fe0]">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#475569"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="5" y="11" width="14" height="9" rx="2" />
-              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-            </svg>
-            <input
-              type={mostrarSenha ? "text" : "password"}
-              placeholder="Senha"
-              className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-500 outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => setMostrarSenha(!mostrarSenha)}
-              aria-label="Mostrar ou ocultar senha"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#475569"
-                strokeWidth="1.8"
+      <div className="relative z-10 w-full max-w-sm px-6 pt-32 pb-10 flex flex-col items-center text-center min-h-screen">
+        <div className="animar-crescer">
+          <div className="w-24 h-24 shrink-0 rounded-[26px] bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/40">
+            <svg width="54" height="54" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 3C7 3 3 6.6 3 11c0 2.2 1 4.2 2.7 5.6L5 21l4.2-2c.9.2 1.8.3 2.8.3 5 0 9-3.6 9-8.3S17 3 12 3z"
+                fill="white"
+              />
+              <path
+                d="M8.5 11.3l2.4 2.4 4.6-4.6"
+                stroke="#4338ca"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-              >
-                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
-          </label>
+              />
+            </svg>
+          </div>
         </div>
 
-        <button className="mt-5 w-full rounded-2xl bg-[#3d3fe8] py-3.5 text-sm font-semibold text-white shadow-md shadow-indigo-300/60 active:scale-[0.99]">
-          Entrar
-        </button>
+        <h1 className="mt-4 text-5xl tracking-tight">
+          <span className="font-semibold text-white">call</span>
+          <span className="font-extrabold text-[#5b6cff]">ZUP</span>
+        </h1>
 
-        <a href="#" className="mt-5 text-xs font-semibold text-[#3b3fe0]">
-          Esqueceu sua senha?
-        </a>
+        <p className="mt-5 text-sm text-blue-100/80">
+          Comunicação simples,
+          <br />
+          segura e eficiente.
+        </p>
 
-        <div className="mt-7 flex w-full items-center gap-3 text-[11px] text-slate-400">
-          <div className="h-px flex-1 bg-slate-200" />
-          ou
-          <div className="h-px flex-1 bg-slate-200" />
-        </div>
+        <div className="flex-1" />
 
-        <button className="mt-6 w-full rounded-2xl border border-slate-300 bg-white py-3.5 text-sm font-semibold text-[#1e2a78] active:scale-[0.99]">
-          Criar uma conta
-        </button>
+        <Link
+          href="/login"
+          className="w-full rounded-2xl bg-gradient-to-r from-[#3d4ff0] to-[#4f5cf5] py-3.5 text-sm font-semibold text-white shadow-lg shadow-black/30 transition duration-150 active:scale-90"
+        >
+          Começar
+        </Link>
+
+        <Link href="/login" className="mt-5 text-xs text-blue-100/70">
+          Já tenho uma conta
+        </Link>
       </div>
     </main>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -96,10 +97,13 @@ export default function LoginPage() {
           </label>
         </div>
 
-        <button className="mt-5 w-full rounded-2xl bg-[#3d3fe8] py-3.5 text-sm font-semibold text-white shadow-md shadow-indigo-300/60 active:scale-[0.99]">
-          Entrar
-        </button>
-
+          <Link
+            href="/conversas"
+            className="mt-5 block w-full rounded-2xl bg-[#3d3fe8] py-3.5 text-center text-sm font-semibold text-white shadow-md shadow-indigo-300/60 transition duration-150 active:scale-90"
+          >
+             Entrar
+        </Link>
+        
         <a href="#" className="mt-5 text-xs font-semibold text-[#3b3fe0]">
           Esqueceu sua senha?
         </a>
