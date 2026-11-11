@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import GuardaHorario from "./componentes/GuardaHorario";
 
 export const metadata: Metadata = {
   title: "callZUP",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" translate="no">
-      <body>{children}</body>
+      <body>
+        <GuardaHorario />
+        {children}
+      </body>
     </html>
   );
 }

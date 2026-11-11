@@ -1,4 +1,4 @@
-import BarraInferior from "../componentes/BarraInferior";
+import BarraInferior from "../comp/BarraInferior";
 
 export default function PerfilPage() {
   return (

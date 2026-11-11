@@ -46,10 +46,6 @@ export default function SplashPage() {
         >
           Começar
         </Link>
-
-        <Link href="/login" className="mt-5 text-xs text-blue-100/70">
-          Já tenho uma conta
-        </Link>
       </div>
     </main>
   );

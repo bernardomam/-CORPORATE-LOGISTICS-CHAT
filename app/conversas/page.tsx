@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import BarraInferior from "../componentes/BarraInferior";
+import Link from "next/link";
+import BarraInferior from "../comp/BarraInferior";
 
 type Conversa = {
   id: number;
@@ -84,35 +85,37 @@ export default function ConversasPage() {
           </div>
         </header>
 
-        <ul>
+                <ul>
           {lista.map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center gap-3 px-5 py-3 transition active:bg-slate-50"
-            >
-              <div
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ${c.cor}`}
+            <li key={c.id}>
+              <Link
+                href={`/chat/${c.id}`}
+                className="flex items-center gap-3 px-5 py-3 transition active:bg-slate-50"
               >
-                {c.nome.charAt(0)}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[16px] font-bold text-[#1e2a78]">
-                  {c.nome}
-                </p>
-                <p className="truncate text-[14px] font-medium text-slate-600">
-                  {c.mensagem}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className="text-[13px] font-semibold text-slate-500">
-                  {c.hora}
-                </span>
-                {c.naoLidas ? (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#3d3fe8] px-1.5 text-xs font-bold text-white">
-                    {c.naoLidas}
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ${c.cor}`}
+                >
+                  {c.nome.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[16px] font-bold text-[#1e2a78]">
+                    {c.nome}
+                  </p>
+                  <p className="truncate text-[14px] font-medium text-slate-600">
+                    {c.mensagem}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[13px] font-semibold text-slate-500">
+                    {c.hora}
                   </span>
-                ) : null}
-              </div>
+                  {c.naoLidas ? (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#3d3fe8] px-1.5 text-xs font-bold text-white">
+                      {c.naoLidas}
+                    </span>
+                  ) : null}
+                </div>
+              </Link>
             </li>
           ))}
         </ul>
