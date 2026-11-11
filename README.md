@@ -6,11 +6,12 @@ Corporate logistics chat — university group project.
 
 - [@bernardomam](https://github.com/bernardomam) - PO
 - [@piresxp](https://github.com/piresxp) - Tech Lead
+- [@guilhermefalcao2026](https://github.com/guilhermefalcao2026) - UX/UI Designer
 - [@EstiveJobson](https://github.com/EstiveJobson) - UX/UI Designer
 - [@igorsales-dev](https://github.com/igorsales-dev) - Analista de SQA
 - [@joaogabriel2405](https://github.com/joaogabriel2405) - Desenvolvedor
 - [@joaovictorlordelo-dev](https://github.com/joaovictorlordelo-dev) - Desenvolvedor
-- [@guilhermefalcao2026](https://github.com/guilhermefalcao2026) - Desenvolvedor
+
 ## Getting started
 
 TBD
