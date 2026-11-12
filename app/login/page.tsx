@@ -1,9 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { dentroDoHorario } from "../lib/horario";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [erro, setErro] = useState("");
+
+  function entrar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!dentroDoHorario()) {
+      setErro("O callZUP só pode ser usado das 8h às 18h.");
+      return;
+    }
+    setErro("");
+    router.push("/conversas");
+  }
 
   return (
     <main className="min-h-screen bg-white flex justify-center">
@@ -25,7 +39,8 @@ export default function LoginPage() {
         </div>
 
         <h1 className="mt-3 text-3xl tracking-tight">
-          <span className="font-semibold text-[#1e2a78]">call</span><span className="font-extrabold text-[#3b3fe0]">ZUP</span>
+          <span className="font-semibold text-[#1e2a78]">call</span>
+          <span className="font-extrabold text-[#3b3fe0]">ZUP</span>
         </h1>
 
         <h2 className="mt-10 text-xl font-bold text-[#1e2a78]">
@@ -33,86 +48,62 @@ export default function LoginPage() {
         </h2>
         <p className="mt-1 text-xs text-slate-600">Faça login para continuar</p>
 
-        <div className="mt-7 w-full space-y-3">
-          <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm focus-within:border-[#3b3fe0]">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#475569"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="5" width="18" height="14" rx="2" />
-              <path d="M3 7l9 6 9-6" />
-            </svg>
-            <input
-              type="email"
-              placeholder="seuemail@empresa.com"
-              className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-700 outline-none"
-            />
-          </label>
-
-          <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm focus-within:border-[#3b3fe0]">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#475569"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="5" y="11" width="14" height="9" rx="2" />
-              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-            </svg>
-            <input
-              type={mostrarSenha ? "text" : "password"}
-              placeholder="Senha"
-              className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-500 outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => setMostrarSenha(!mostrarSenha)}
-              aria-label="Mostrar ou ocultar senha"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#475569"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-                <circle cx="12" cy="12" r="3" />
+        <form onSubmit={entrar} className="w-full">
+          <div className="mt-7 w-full space-y-3">
+            <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm focus-within:border-[#3b3fe0]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <path d="M3 7l9 6 9-6" />
               </svg>
-            </button>
-          </label>
-        </div>
+              <input
+                type="email"
+                placeholder="seuemail@empresa.com"
+                className="w-full bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-500 outline-none"
+              />
+            </label>
 
-        <button className="mt-5 w-full rounded-2xl bg-[#3d3fe8] py-3.5 text-sm font-semibold text-white shadow-md shadow-indigo-300/60 active:scale-[0.99]">
-          Entrar
-        </button>
+            <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm focus-within:border-[#3b3fe0]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="5" y="11" width="14" height="9" rx="2" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+              </svg>
+              <input
+                type={mostrarSenha ? "text" : "password"}
+                placeholder="Senha"
+                className="w-full bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-500 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarSenha(!mostrarSenha)}
+                aria-label="Mostrar ou ocultar senha"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+            </label>
+          </div>
 
-        <a href="#" className="mt-5 text-xs font-semibold text-[#3b3fe0]">
-          Esqueceu sua senha?
-        </a>
+          {erro ? (
+            <p className="mt-3 text-center text-xs font-semibold text-red-600">
+              {erro}
+            </p>
+          ) : null}
 
-        <div className="mt-7 flex w-full items-center gap-3 text-[11px] text-slate-400">
-          <div className="h-px flex-1 bg-slate-200" />
-          ou
-          <div className="h-px flex-1 bg-slate-200" />
-        </div>
+          <button
+            type="submit"
+            className="mt-5 w-full rounded-2xl bg-[#3d3fe8] py-3.5 text-sm font-semibold text-white shadow-md shadow-indigo-300/60 transition duration-150 active:scale-90"
+          >
+            Entrar
+          </button>
+        </form>
 
-        <button className="mt-6 w-full rounded-2xl border border-slate-300 bg-white py-3.5 text-sm font-semibold text-[#1e2a78] active:scale-[0.99]">
-          Criar uma conta
-        </button>
+        <p className="mt-6 text-center text-xs font-medium text-slate-500">
+          Esqueceu a senha ou não tem acesso?
+          <br />
+          Fale com a equipe de TI da sua empresa.
+        </p>
       </div>
     </main>
   );
