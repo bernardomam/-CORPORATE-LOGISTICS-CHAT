@@ -1,8 +1,6 @@
 import { Router } from 'express';
-
+import { autenticarToken, exigirTI } from '../middlewares/authMiddleware.js';
 import {
-    createCompanyController,
-    listCompaniesController,
     getCompanyByIdController,
     updateCompanyController,
     deactivateCompanyController
@@ -10,19 +8,26 @@ import {
 
 const router = Router();
 
-// Cadastrar empresa
-router.post('/', createCompanyController);
+// A conta IT_ADMIN administra apenas a própria empresa.
+// Criar/listar empresas globalmente exige uma futura função de administrador da plataforma.
+router.use(autenticarToken, exigirTI);
 
-// Listar empresas
-router.get('/', listCompaniesController);
+router.get('/', (req, res) => {
+    return res.redirect(307, `/api/companies/${req.user.companyId}`);
+});
 
-// Buscar empresa pelo ID
+router.use('/:id', (req, res, next) => {
+    if (req.params.id !== req.user.companyId) {
+        return res.status(403).json({
+            sucesso: false,
+            mensagem: 'Acesso negado a outra empresa.'
+        });
+    }
+    next();
+});
+
 router.get('/:id', getCompanyByIdController);
-
-// Atualizar empresa
 router.put('/:id', updateCompanyController);
-
-// Desativar empresa
 router.patch('/:id/deactivate', deactivateCompanyController);
 
 export default router;
