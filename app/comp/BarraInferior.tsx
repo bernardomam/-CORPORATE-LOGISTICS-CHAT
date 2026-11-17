@@ -59,7 +59,9 @@ export default function BarraInferior({ ativo }: { ativo: string }) {
     try {
       const salvo = localStorage.getItem("callzup_perfil");
       if (salvo === "USER" || salvo === "IT_ADMIN") setPerfil(salvo);
-    } catch {}
+    } catch {
+      // A navegação continua disponível mesmo quando o storage está bloqueado.
+    }
   }, []);
 
   function alternar() {
@@ -67,49 +69,63 @@ export default function BarraInferior({ ativo }: { ativo: string }) {
     setPerfil(novo);
     try {
       localStorage.setItem("callzup_perfil", novo);
-    } catch {}
+    } catch {
+      // O seletor é apenas uma ferramenta de desenvolvimento.
+    }
   }
 
   return (
     <>
-      <button
-        onClick={alternar}
-        className="fixed right-2 top-2 z-50 rounded-full bg-slate-800 px-3 py-1 text-[11px] font-bold text-white opacity-80"
-      >
-        Teste: {perfil}
-      </button>
+      {process.env.NODE_ENV !== "production" ? (
+        <button
+          type="button"
+          onClick={alternar}
+          className="fixed right-2 top-2 z-50 rounded-full bg-slate-800 px-3 py-1 text-[11px] font-bold text-white opacity-80"
+          aria-label={`Alternar perfil de teste. Perfil atual: ${perfil}`}
+        >
+          Teste: {perfil}
+        </button>
+      ) : null}
 
-      <nav className="fixed bottom-0 left-1/2 z-40 flex w-full max-w-sm -translate-x-1/2 justify-around border-t border-slate-200 bg-white py-2 md:bottom-0 md:left-0 md:top-0 md:w-56 md:max-w-none md:translate-x-0 md:flex-col md:justify-start md:gap-2 md:border-r md:border-t-0 md:px-3 md:py-6">
-        <p className="hidden px-3 pb-4 text-2xl md:block">
+      <nav
+        aria-label="Navegação principal"
+        className="fixed bottom-0 left-1/2 z-40 flex w-full max-w-sm -translate-x-1/2 justify-around border-t border-slate-200 bg-white px-2 py-2 shadow-[0_-4px_16px_rgba(15,23,42,0.04)] md:bottom-0 md:left-0 md:top-0 md:w-64 md:max-w-none md:translate-x-0 md:flex-col md:justify-start md:gap-2 md:border-r md:border-t-0 md:px-4 md:py-6 md:shadow-none"
+      >
+        <p className="hidden px-3 pb-5 text-2xl md:block">
           <span className="font-semibold text-[#1e2a78]">call</span>
           <span className="font-extrabold text-[#3b3fe0]">ZUP</span>
         </p>
-        {menus[perfil].map((item) => (
-          <Link
-            key={item.nome}
-            href={item.href}
-            className={`flex flex-col items-center gap-1 transition active:scale-90 md:flex-row md:gap-3 md:rounded-xl md:px-3 md:py-2.5 ${
-              item.nome === ativo
-                ? "text-[#3d3fe8] md:bg-indigo-50"
-                : "text-slate-400"
-            }`}
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        {menus[perfil].map((item) => {
+          const selecionado = item.nome === ativo;
+          return (
+            <Link
+              key={item.nome}
+              href={item.href}
+              aria-current={selecionado ? "page" : undefined}
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 transition-colors active:scale-95 md:flex-row md:flex-none md:justify-start md:gap-3 md:px-3 md:py-3 ${
+                selecionado
+                  ? "bg-indigo-50 text-[#3d3fe8]"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-[#1e2a78]"
+              }`}
             >
-              {icones[item.icone]}
-            </svg>
-            <span className="text-xs font-bold md:text-sm">{item.nome}</span>
-          </Link>
-        ))}
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                {icones[item.icone]}
+              </svg>
+              <span className="truncate text-[11px] font-bold md:text-sm">{item.nome}</span>
+            </Link>
+          );
+        })}
       </nav>
     </>
   );
-} 
+}

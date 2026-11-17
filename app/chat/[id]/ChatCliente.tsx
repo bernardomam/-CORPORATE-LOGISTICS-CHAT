@@ -43,7 +43,7 @@ function formatarTamanho(bytes: number) {
 function Ticks({ status }: { status?: Status }) {
   if (!status) return null;
   const cor = status === "lida" ? "text-sky-300" : "text-white/70";
-  return <span className={`ml-1 text-[11px] ${cor}`}>{status === "enviada" ? "✓" : "✓✓"}</span>;
+  return <span className={`ml-1 text-[11px] ${cor}`} aria-label={status === "lida" ? "Lida" : status === "entregue" ? "Entregue" : "Enviada"}>{status === "enviada" ? "✓" : "✓✓"}</span>;
 }
 
 export default function ChatCliente({ id }: { id: string }) {
@@ -65,19 +65,19 @@ export default function ChatCliente({ id }: { id: string }) {
   function adicionar(parcial: Partial<Msg>) {
     if (!dentroDoHorario()) {
       setAviso("Fora do horário de uso (8h às 18h). Não é possível enviar.");
-      return;
+      return false;
     }
     setAviso("");
     const novoId = Date.now();
     setMsgs((m) => [...m, { id: novoId, minha: true, hora: agora(), status: "enviada", ...parcial }]);
     simularStatus(novoId);
+    return true;
   }
 
   function enviarTexto() {
     const t = texto.trim();
     if (!t) return;
-    adicionar({ texto: t });
-    setTexto("");
+    if (adicionar({ texto: t })) setTexto("");
   }
 
   function escolherArquivo(e: React.ChangeEvent<HTMLInputElement>) {
@@ -97,37 +97,37 @@ export default function ChatCliente({ id }: { id: string }) {
 
   return (
     <main className="min-h-screen bg-slate-100 flex justify-center">
-      <div className="flex min-h-screen w-full max-w-sm flex-col">
+      <div className="flex min-h-screen w-full max-w-sm flex-col bg-white shadow-sm md:max-w-5xl md:border-x md:border-slate-200">
         <header className="flex items-center gap-3 bg-[#0e1f7a] px-4 py-4 text-white">
-          <Link href="/conversas" aria-label="Voltar" className="text-xl font-bold">
+          <Link href="/conversas" aria-label="Voltar para conversas" className="rounded-lg px-2 py-1 text-xl font-bold transition hover:bg-white/10">
             ←
           </Link>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-base font-bold">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-base font-bold" aria-hidden="true">
             {nome.charAt(0)}
           </div>
-          <div>
-            <p className="text-base font-bold leading-tight">{nome}</p>
+          <div className="min-w-0">
+            <p className="truncate text-base font-bold leading-tight">{nome}</p>
             <p className="text-xs font-medium text-emerald-300">Online</p>
           </div>
         </header>
 
-        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 pb-28">
+        <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4 pb-28 md:px-8" aria-label="Mensagens da conversa" aria-live="polite">
           {msgs.map((m) => (
             <div key={m.id} className={`flex ${m.minha ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-[15px] font-medium shadow-sm ${
+                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[15px] font-medium shadow-sm md:max-w-[65%] ${
                   m.minha ? "rounded-br-sm bg-[#3d3fe8] text-white" : "rounded-bl-sm bg-white text-slate-800"
                 }`}
               >
-                {m.texto ? <p>{m.texto}</p> : null}
+                {m.texto ? <p className="whitespace-pre-wrap break-words">{m.texto}</p> : null}
 
                 {m.arquivo?.tipo === "pdf" ? (
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-9 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white">
+                    <div className="flex h-10 w-9 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white" aria-hidden="true">
                       PDF
                     </div>
-                    <div>
-                      <p className="text-sm font-bold">{m.arquivo.nome}</p>
+                    <div className="min-w-0">
+                      <p className="break-all text-sm font-bold">{m.arquivo.nome}</p>
                       <p className={`text-xs ${m.minha ? "text-white/70" : "text-slate-500"}`}>{m.arquivo.tamanho}</p>
                     </div>
                   </div>
@@ -137,7 +137,7 @@ export default function ChatCliente({ id }: { id: string }) {
                   <div>
                     {m.arquivo.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={m.arquivo.url} alt={m.arquivo.nome} className="max-h-48 rounded-lg" />
+                      <img src={m.arquivo.url} alt={m.arquivo.nome} className="max-h-64 rounded-lg object-contain" />
                     ) : null}
                     <p className="mt-1 text-xs">{m.arquivo.nome}</p>
                   </div>
@@ -152,36 +152,39 @@ export default function ChatCliente({ id }: { id: string }) {
           ))}
         </div>
 
-        <div className="fixed bottom-0 left-1/2 w-full max-w-sm -translate-x-1/2 border-t border-slate-200 bg-white px-3 py-3">
-          {aviso ? <p className="mb-2 text-center text-xs font-semibold text-red-600">{aviso}</p> : null}
-          <div className="flex items-center gap-2">
+        <div className="fixed bottom-0 left-1/2 w-full max-w-sm -translate-x-1/2 border-t border-slate-200 bg-white px-3 py-3 md:left-1/2 md:w-full md:max-w-5xl">
+          {aviso ? <p role="alert" className="mb-2 text-center text-xs font-semibold text-red-600">{aviso}</p> : null}
+          <div className="mx-auto flex max-w-4xl items-center gap-2">
             <input
               ref={arquivoRef}
               type="file"
               accept="application/pdf,image/jpeg"
               onChange={escolherArquivo}
               className="hidden"
+              aria-label="Selecionar arquivo PDF ou imagem JPEG"
             />
             <button
               type="button"
               onClick={() => arquivoRef.current?.click()}
               aria-label="Anexar PDF ou JPEG"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl text-[#1e2a78] transition active:scale-90"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl text-[#1e2a78] transition hover:bg-slate-200 active:scale-95"
             >
               📎
             </button>
             <input
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && enviarTexto()}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && enviarTexto()}
               placeholder="Digite uma mensagem..."
-              className="flex-1 rounded-full bg-slate-100 px-4 py-2.5 text-[15px] font-medium text-slate-900 placeholder:text-slate-500 outline-none"
+              aria-label="Mensagem"
+              className="min-w-0 flex-1 rounded-full bg-slate-100 px-4 py-3 text-[15px] font-medium text-slate-900 placeholder:text-slate-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
             />
             <button
               type="button"
               onClick={enviarTexto}
-              aria-label="Enviar"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3d3fe8] text-lg text-white transition active:scale-90"
+              aria-label="Enviar mensagem"
+              disabled={!texto.trim()}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#3d3fe8] text-lg text-white transition hover:bg-[#3032c9] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ➤
             </button>
