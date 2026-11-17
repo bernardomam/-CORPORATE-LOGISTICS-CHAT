@@ -1,65 +1,92 @@
 
 import { prisma } from '../config/prisma.js';
 
-// Cadastrar uma empresa
-export async function createCompany(name) {
-    return await prisma.company.create({
-        data: {
-            name: name.trim()
-        }
-    });
-}
+// Listar somente a empresa do usuário autenticado.
+export async function listCompanies(usuario) {
+    if (!usuario?.companyId) {
+        const error = new Error('Empresa do usuário não identificada.');
+        error.status = 401;
+        throw error;
+    }
 
-// Listar todas as empresas
-export async function listCompanies() {
     return await prisma.company.findMany({
-        orderBy: {
-            createdAt: 'desc'
-        }
-    });
-}
-
-// Buscar uma empresa pelo ID
-export async function getCompanyById(id) {
-    return await prisma.company.findUnique({
         where: {
-            id
+            id: usuario.companyId
+        },
+        select: {
+            id: true,
+            name: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true
         }
     });
 }
 
-// Atualizar o nome de uma empresa
-export async function updateCompany(id, name) {
-    const company = await getCompanyById(id);
+// Buscar somente a própria empresa.
+export async function getCompanyById(usuario, id) {
+    if (!usuario?.companyId) {
+        const error = new Error('Empresa do usuário não identificada.');
+        error.status = 401;
+        throw error;
+    }
 
-    if (!company) {
+    if (id !== usuario.companyId) {
+        return null;
+    }
+
+    return await prisma.company.findFirst({
+        where: {
+            id: usuario.companyId
+        },
+        select: {
+            id: true,
+            name: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true
+        }
+    });
+}
+
+// Atualizar somente a própria empresa.
+export async function updateCompany(usuario, id, name) {
+    if (!usuario?.companyId) {
+        const error = new Error('Empresa do usuário não identificada.');
+        error.status = 401;
+        throw error;
+    }
+
+    if (id !== usuario.companyId) {
+        return null;
+    }
+
+    const empresa = await prisma.company.findFirst({
+        where: {
+            id: usuario.companyId
+        },
+        select: {
+            id: true
+        }
+    });
+
+    if (!empresa) {
         return null;
     }
 
     return await prisma.company.update({
         where: {
-            id
+            id: usuario.companyId
         },
         data: {
             name: name.trim()
-        }
-    });
-}
-
-// Desativar uma empresa sem apagar seus dados
-export async function deactivateCompany(id) {
-    const company = await getCompanyById(id);
-
-    if (!company) {
-        return null;
-    }
-
-    return await prisma.company.update({
-        where: {
-            id
         },
-        data: {
-            status: 'INACTIVE'
+        select: {
+            id: true,
+            name: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true
         }
     });
 }

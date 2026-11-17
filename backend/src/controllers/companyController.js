@@ -1,45 +1,14 @@
 
 import {
-    createCompany,
     listCompanies,
     getCompanyById,
-    updateCompany,
-    deactivateCompany
+    updateCompany
 } from '../services/companyService.js';
 
-// Cadastrar empresa
-export async function createCompanyController(req, res) {
+// Listar empresa do usuário autenticado.
+export async function listCompaniesController(req, res, next) {
     try {
-        const { name } = req.body;
-
-        if (!name || typeof name !== 'string' || !name.trim()) {
-            return res.status(400).json({
-                sucesso: false,
-                mensagem: 'O nome da empresa é obrigatório.'
-            });
-        }
-
-        const company = await createCompany(name);
-
-        return res.status(201).json({
-            sucesso: true,
-            mensagem: 'Empresa cadastrada com sucesso!',
-            empresa: company
-        });
-    } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            sucesso: false,
-            mensagem: 'Erro ao cadastrar empresa.'
-        });
-    }
-}
-
-// Listar empresas
-export async function listCompaniesController(req, res) {
-    try {
-        const companies = await listCompanies();
+        const companies = await listCompanies(req.user);
 
         return res.status(200).json({
             sucesso: true,
@@ -47,21 +16,16 @@ export async function listCompaniesController(req, res) {
             empresas: companies
         });
     } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            sucesso: false,
-            mensagem: 'Erro ao listar empresas.'
-        });
+        return next(error);
     }
 }
 
-// Buscar empresa pelo ID
-export async function getCompanyByIdController(req, res) {
+// Buscar empresa pelo ID.
+export async function getCompanyByIdController(req, res, next) {
     try {
         const { id } = req.params;
 
-        const company = await getCompanyById(id);
+        const company = await getCompanyById(req.user, id);
 
         if (!company) {
             return res.status(404).json({
@@ -75,29 +39,35 @@ export async function getCompanyByIdController(req, res) {
             empresa: company
         });
     } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            sucesso: false,
-            mensagem: 'Erro ao buscar empresa.'
-        });
+        return next(error);
     }
 }
 
-// Atualizar empresa
-export async function updateCompanyController(req, res) {
+// Atualizar empresa.
+export async function updateCompanyController(req, res, next) {
     try {
         const { id } = req.params;
-        const { name } = req.body;
 
-        if (!name || typeof name !== 'string' || !name.trim()) {
+        const dados = req.body;
+
+        if (
+            !dados ||
+            typeof dados !== 'object' ||
+            Array.isArray(dados) ||
+            typeof dados.name !== 'string' ||
+            !dados.name.trim()
+        ) {
             return res.status(400).json({
                 sucesso: false,
                 mensagem: 'Informe um nome válido.'
             });
         }
 
-        const company = await updateCompany(id, name);
+        const company = await updateCompany(
+            req.user,
+            id,
+            dados.name.trim()
+        );
 
         if (!company) {
             return res.status(404).json({
@@ -112,40 +82,6 @@ export async function updateCompanyController(req, res) {
             empresa: company
         });
     } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            sucesso: false,
-            mensagem: 'Erro ao atualizar empresa.'
-        });
-    }
-}
-
-// Desativar empresa
-export async function deactivateCompanyController(req, res) {
-    try {
-        const { id } = req.params;
-
-        const company = await deactivateCompany(id);
-
-        if (!company) {
-            return res.status(404).json({
-                sucesso: false,
-                mensagem: 'Empresa não encontrada.'
-            });
-        }
-
-        return res.status(200).json({
-            sucesso: true,
-            mensagem: 'Empresa desativada com sucesso!',
-            empresa: company
-        });
-    } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            sucesso: false,
-            mensagem: 'Erro ao desativar empresa.'
-        });
+        return next(error);
     }
 }

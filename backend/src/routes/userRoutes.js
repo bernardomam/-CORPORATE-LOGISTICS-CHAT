@@ -1,5 +1,5 @@
 
-import express from 'express';
+import { Router } from 'express';
 
 import {
     cadastrar,
@@ -12,15 +12,27 @@ import {
     exigirTI
 } from '../middlewares/authMiddleware.js';
 
-const router = express.Router();
+const router = Router();
 
-// Todas as rotas exigem autenticação e permissão de TI
+// ==========================================
+// PROTEÇÃO DAS ROTAS DE USUÁRIOS
+// ==========================================
+
+// Todas as rotas abaixo exigem:
+// 1. JWT válido
+// 2. Usuário ativo
+// 3. Empresa ativa
+// 4. Perfil IT_ADMIN
 router.use(autenticarToken, exigirTI);
+
+// ==========================================
+// ADMINISTRAÇÃO DE USUÁRIOS
+// ==========================================
 
 // Cadastrar usuário
 router.post('/', cadastrar);
 
-// Listar usuários da empresa
+// Listar usuários
 router.get('/', listar);
 
 // Desativar usuário
