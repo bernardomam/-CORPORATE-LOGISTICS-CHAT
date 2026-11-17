@@ -1,19 +1,11 @@
-
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'node:url';
+import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../generated/prisma/client.ts';
-
-dotenv.config({
-    path: fileURLToPath(new URL('../../.env', import.meta.url))
-});
+import { PrismaClient } from '../../dist/generated/prisma/client.js';
 
 const connectionString = process.env.DATABASE_URL;
 
-if (!connectionString || !connectionString.trim()) {
-    throw new Error(
-        'DATABASE_URL não configurada. Verifique as variáveis de ambiente do backend.'
-    );
+if (!connectionString?.trim()) {
+    throw new Error('DATABASE_URL não configurada.');
 }
 
 const adapter = new PrismaPg({

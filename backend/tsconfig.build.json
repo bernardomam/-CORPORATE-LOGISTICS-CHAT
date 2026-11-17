@@ -1,0 +1,20 @@
+﻿{
+    "include":  [
+                    "src/generated/prisma/**/*.ts"
+                ],
+    "exclude":  [
+                    "node_modules"
+                ],
+    "compilerOptions":  {
+                            "esModuleInterop":  true,
+                            "outDir":  "dist/generated/prisma",
+                            "moduleResolution":  "NodeNext",
+                            "declaration":  false,
+                            "strict":  true,
+                            "target":  "ES2022",
+                            "skipLibCheck":  true,
+                            "module":  "NodeNext",
+                            "rootDir":  "src/generated/prisma",
+                            "sourceMap":  false
+                        }
+}

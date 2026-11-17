@@ -1,4 +1,3 @@
-
 {
   "name": "calzup-backend",
   "version": "1.0.0",
@@ -8,7 +7,8 @@
   "scripts": {
     "dev": "nodemon --exec tsx src/server.js",
     "start": "tsx src/server.js",
-    "test": "echo \"Testes ainda não configurados\""
+    "test": "echo \"Testes ainda não configurados\"",
+    "postinstall": "prisma generate && tsc --project tsconfig.build.json"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",
@@ -22,6 +22,7 @@
   "devDependencies": {
     "nodemon": "^3.1.14",
     "prisma": "^7.10.1",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }

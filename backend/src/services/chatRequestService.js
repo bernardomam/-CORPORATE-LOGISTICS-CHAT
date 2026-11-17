@@ -22,10 +22,14 @@ function validarTI(usuario) {
     }
 }
 
-// TEMPORARIO: horario liberado durante os testes.
-// Restaurar a validacao das 08h as 18h antes da entrega final.
+// Acesso permitido das 08h00 as 17h59, horario de Brasilia.
 function validarHorario() {
-    return;
+    if (!verificarHorarioFuncionamento()) {
+        throw criarErro(
+            'Acesso permitido somente das 08h as 18h, no horario de Brasilia.',
+            403
+        );
+    }
 }
 
 function gerarPairKey(usuarioId, outroUsuarioId) {

@@ -14,10 +14,14 @@ function validarUsuario(usuario) {
     }
 }
 
-// TEMPORARIO: horario liberado durante os testes.
-// Restaurar a validacao das 08h as 18h antes da entrega final.
+// Restringe o acesso ao horario de funcionamento de Brasilia.
 function validarHorario() {
-    return;
+    if (!verificarHorarioFuncionamento()) {
+        throw criarErro(
+            'Acesso permitido somente das 08h as 18h, no horario de Brasilia.',
+            403
+        );
+    }
 }
 
 function validarIdentificador(valor, mensagem) {
