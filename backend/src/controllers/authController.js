@@ -1,10 +1,38 @@
+
 import { autenticarUsuario } from '../services/authService.js';
+
+// ==========================================
+// REALIZAR LOGIN
+// ==========================================
 
 export async function login(req, res) {
     try {
-        const { email, password } = req.body;
+        // Evitar erro quando o corpo da requisição
+        // estiver ausente ou for inválido.
+        const dados = req.body;
 
-        const resultado = await autenticarUsuario(email, password);
+        if (
+            !dados ||
+            typeof dados !== 'object' ||
+            Array.isArray(dados)
+        ) {
+            return res.status(400).json({
+                sucesso: false,
+                mensagem: 'E-mail e senha são obrigatórios.'
+            });
+        }
+
+        const { email, password } = dados;
+
+        // A validação das credenciais e a geração
+        // do JWT acontecem no serviço de autenticação.
+        const resultado = await autenticarUsuario(
+            email,
+            password
+        );
+
+        // Evitar armazenamento do token em cache.
+        res.set('Cache-Control', 'no-store');
 
         return res.status(200).json({
             sucesso: true,
@@ -14,24 +42,49 @@ export async function login(req, res) {
         });
 
     } catch (error) {
-        console.error('Erro na autenticação:', error.message);
+        const codigo = error?.message;
 
-        const erros = {
-            EMAIL_SENHA_OBRIGATORIOS: [400, 'E-mail e senha são obrigatórios.'],
-            CREDENCIAIS_INVALIDAS: [401, 'E-mail ou senha incorretos.'],
-            USUARIO_INATIVO: [403, 'Usuário desativado. Procure a equipe de TI.'],
-            EMPRESA_INATIVA: [403, 'Empresa inativa. Procure a equipe de TI.'],
-            JWT_SECRET_NAO_CONFIGURADO: [500, 'Configuração de autenticação incompleta.']
-        };
+        // Não revelar se o e-mail existe,
+        // se o usuário foi desativado ou
+        // se a empresa está inativa.
+        const errosDeCredenciais = new Set([
+            'CREDENCIAIS_INVALIDAS',
+            'USUARIO_INATIVO',
+            'EMPRESA_INATIVA'
+        ]);
 
-        const resposta = erros[error.message];
-
-        if (resposta) {
-            return res.status(resposta[0]).json({
+        if (errosDeCredenciais.has(codigo)) {
+            return res.status(401).json({
                 sucesso: false,
-                mensagem: resposta[1]
+                mensagem: 'E-mail ou senha incorretos.'
             });
         }
+
+        if (codigo === 'EMAIL_SENHA_OBRIGATORIOS') {
+            return res.status(400).json({
+                sucesso: false,
+                mensagem: 'E-mail e senha são obrigatórios.'
+            });
+        }
+
+        // Preservar a regra de horário existente.
+        if (codigo === 'FORA_DO_HORARIO') {
+            return res.status(403).json({
+                sucesso: false,
+                mensagem:
+                    'O CalZup funciona somente das 08h às 18h, no horário de Brasília.'
+            });
+        }
+
+        if (codigo === 'JWT_SECRET_NAO_CONFIGURADO') {
+            return res.status(500).json({
+                sucesso: false,
+                mensagem: 'Configuração de autenticação incompleta.'
+            });
+        }
+
+        // Registrar erros inesperados somente no servidor.
+        console.error('Erro interno ao realizar login:', error);
 
         return res.status(500).json({
             sucesso: false,
