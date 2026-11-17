@@ -1,7 +1,9 @@
+
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import "./globals.css";
 import GuardaHorario from "./componentes/GuardaHorario";
+import { AuthProvider } from "./contextos/AuthContext";
 
 export const metadata: Metadata = {
   title: "callZUP",
@@ -16,10 +18,12 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" translate="no">
       <body>
-        <Suspense fallback={null}>
-          <GuardaHorario />
-        </Suspense>
-        {children}
+        <AuthProvider>
+          <Suspense fallback={null}>
+            <GuardaHorario />
+          </Suspense>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

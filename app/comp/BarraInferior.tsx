@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "../contextos/AuthContext";
 
 type Perfil = "USER" | "IT_ADMIN";
 
@@ -53,18 +54,29 @@ const menus: Record<Perfil, { nome: string; href: string; icone: string }[]> = {
 };
 
 export default function BarraInferior({ ativo }: { ativo: string }) {
-  const [perfil, setPerfil] = useState<Perfil>("USER");
+  const { usuario } = useAuth();
+  const [perfilTeste, setPerfilTeste] = useState<Perfil | null>(null);
 
   useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+
     try {
       const salvo = localStorage.getItem("callzup_perfil");
-      if (salvo === "USER" || salvo === "IT_ADMIN") setPerfil(salvo);
+      if (salvo === "USER" || salvo === "IT_ADMIN") {
+        setPerfilTeste(salvo);
+      }
     } catch {}
   }, []);
 
+  const perfil: Perfil =
+    process.env.NODE_ENV === "development" && perfilTeste
+      ? perfilTeste
+      : usuario?.role ?? "USER";
+
   function alternar() {
     const novo: Perfil = perfil === "USER" ? "IT_ADMIN" : "USER";
-    setPerfil(novo);
+    setPerfilTeste(novo);
+
     try {
       localStorage.setItem("callzup_perfil", novo);
     } catch {}
@@ -72,18 +84,21 @@ export default function BarraInferior({ ativo }: { ativo: string }) {
 
   return (
     <>
-      <button
-        onClick={alternar}
-        className="fixed right-2 top-2 z-50 rounded-full bg-slate-800 px-3 py-1 text-[11px] font-bold text-white opacity-80"
-      >
-        Teste: {perfil}
-      </button>
+      {process.env.NODE_ENV === "development" && (
+        <button
+          onClick={alternar}
+          className="fixed right-2 top-2 z-50 rounded-full bg-slate-800 px-3 py-1 text-[11px] font-bold text-white opacity-80"
+        >
+          Teste: {perfil}
+        </button>
+      )}
 
-      <nav className="fixed bottom-0 left-1/2 z-40 flex w-full max-w-sm -translate-x-1/2 justify-around border-t border-slate-200 bg-white py-2 md:bottom-0 md:left-0 md:top-0 md:w-56 md:max-w-none md:translate-x-0 md:flex-col md:justify-start md:gap-2 md:border-r md:border-t-0 md:px-3 md:py-6">
+      <nav className="fixed bottom-0 left-0 z-40 flex w-full justify-around border-t border-slate-200 bg-white py-2 md:bottom-0 md:top-0 md:w-56 md:flex-col md:justify-start md:gap-2 md:border-r md:border-t-0 md:px-3 md:py-6">
         <p className="hidden px-3 pb-4 text-2xl md:block">
           <span className="font-semibold text-[#1e2a78]">call</span>
           <span className="font-extrabold text-[#3b3fe0]">ZUP</span>
         </p>
+
         {menus[perfil].map((item) => (
           <Link
             key={item.nome}
@@ -106,10 +121,13 @@ export default function BarraInferior({ ativo }: { ativo: string }) {
             >
               {icones[item.icone]}
             </svg>
-            <span className="text-xs font-bold md:text-sm">{item.nome}</span>
+
+            <span className="text-xs font-bold md:text-sm">
+              {item.nome}
+            </span>
           </Link>
         ))}
       </nav>
     </>
   );
-} 
+}
