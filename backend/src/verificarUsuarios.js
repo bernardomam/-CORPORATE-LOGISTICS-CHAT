@@ -1,3 +1,4 @@
+
 import { prisma } from './config/prisma.js';
 
 async function verificarDados() {

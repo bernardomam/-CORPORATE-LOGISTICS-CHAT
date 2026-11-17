@@ -1,35 +1,65 @@
 
-import express from 'express';
 import 'dotenv/config';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import express from 'express';
 
 import { prisma } from './config/prisma.js';
+
+// Rotas da API
 import companyRoutes from './routes/companyRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import groupRoutes from './routes/groupRoutes.js';
+import myGroupRoutes from './routes/myGroupRoutes.js';
+import groupMessageRoutes from './routes/groupMessageRoutes.js';
+import chatRequestRoutes from './routes/chatRequestRoutes.js';
+import privateChatRoutes from './routes/privateChatRoutes.js';
+
+// Tratamento global de erros
+import { errorMiddleware } from './middlewares/errorMiddleware.js';
 
 const app = express();
-
-// Caminho da pasta public
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const PORT = process.env.PORT || 3000;
 
 // ==========================================
-// CONFIGURAÇÕES DO SERVIDOR
+// CONFIGURAÇÕES DE SEGURANÇA
 // ==========================================
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Não divulgar que o servidor utiliza Express.
+app.disable('x-powered-by');
 
-// Disponibiliza os arquivos HTML, CSS e JavaScript
-app.use(express.static(path.resolve(__dirname, '../public')));
+// Não confiar automaticamente em cabeçalhos de proxy.
+// Se o backend for publicado atrás de um proxy confiável,
+// esta configuração deverá ser revisada.
+app.set('trust proxy', false);
 
-// ==========================================
-// ROTAS DO SISTEMA
-// ==========================================
+// Cabeçalhos básicos de segurança.
+app.use((req, res, next) => {
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('X-Frame-Options', 'DENY');
+    res.set('Referrer-Policy', 'no-referrer');
+    res.set('X-DNS-Prefetch-Control', 'off');
 
-app.use('/api/companies', companyRoutes);
-app.use('/api/auth', authRoutes);
+    next();
+});
+
+// Limitar o tamanho das requisições JSON e formulários.
+// Uploads futuros deverão usar tratamento específico.
+app.use(express.json({
+    limit: '100kb',
+    strict: true
+}));
+
+app.use(express.urlencoded({
+    extended: false,
+    limit: '100kb',
+    parameterLimit: 100
+}));
+
+// Evitar cache das respostas da API.
+app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
 
 // ==========================================
 // ROTA PRINCIPAL
@@ -38,14 +68,12 @@ app.use('/api/auth', authRoutes);
 app.get('/', (req, res) => {
     return res.status(200).json({
         sucesso: true,
-        mensagem: 'API do Calzup funcionando!',
-        sistema: 'Calzup',
-        versao: '1.0.0'
+        mensagem: 'API do CalZup funcionando'
     });
 });
 
 // ==========================================
-// STATUS DO SERVIDOR E BANCO DE DADOS
+// VERIFICAÇÃO DO SERVIDOR E BANCO
 // ==========================================
 
 app.get('/api/status', async (req, res) => {
@@ -54,63 +82,90 @@ app.get('/api/status', async (req, res) => {
 
         return res.status(200).json({
             sucesso: true,
-            mensagem: 'Servidor funcionando corretamente!',
-            bancoDeDados: 'Conectado',
-            sistema: 'Calzup'
+            mensagem: 'Serviço disponível'
         });
-
     } catch (error) {
-        console.error('Erro ao verificar banco:', error);
+        console.error('Falha na verificação de saúde da API:', error);
 
         return res.status(503).json({
             sucesso: false,
-            mensagem: 'Servidor ativo, mas o banco de dados está indisponível.',
-            bancoDeDados: 'Desconectado'
+            mensagem: 'Serviço temporariamente indisponível'
         });
     }
 });
 
 // ==========================================
-// TRATAMENTO DE ROTAS NÃO ENCONTRADAS
+// HORÁRIO DE FUNCIONAMENTO
+// ==========================================
+
+// Restrição de horário temporariamente desativada
+// durante o desenvolvimento e os testes.
+//
+// Antes da entrega final do CalZup, restaurar
+// o bloqueio das 08h às 18h, horário de Brasília.
+
+// ==========================================
+// ROTAS DA API
+// ==========================================
+
+// Empresas
+app.use('/api/companies', companyRoutes);
+
+// Autenticação
+app.use('/api/auth', authRoutes);
+
+// Usuários
+app.use('/api/users', userRoutes);
+
+// Administração de grupos
+app.use('/api/groups', groupRoutes);
+
+// Grupos do usuário
+app.use('/api/my-groups', myGroupRoutes);
+
+// Mensagens dos grupos
+app.use('/api/group-messages', groupMessageRoutes);
+
+// Solicitações de conversas privadas
+app.use('/api/chat-requests', chatRequestRoutes);
+
+// Conversas privadas
+app.use('/api/private-chats', privateChatRoutes);
+
+// ==========================================
+// ROTA NÃO ENCONTRADA
 // ==========================================
 
 app.use((req, res) => {
     return res.status(404).json({
         sucesso: false,
-        mensagem: 'Rota não encontrada.',
-        rota: req.originalUrl
+        mensagem: 'Rota não encontrada.'
     });
 });
 
 // ==========================================
-// INICIALIZAÇÃO DO SERVIDOR
+// TRATAMENTO GLOBAL DE ERROS
 // ==========================================
 
-const PORT = process.env.PORT || 3000;
+app.use(errorMiddleware);
+
+// ==========================================
+// INICIALIZAÇÃO DO SERVIDOR
+// ==========================================
 
 const server = app.listen(PORT, () => {
     console.log('================================');
     console.log('CALZUP - BACKEND');
     console.log('================================');
     console.log(`Servidor rodando na porta ${PORT}`);
-    console.log(`Acesse: http://localhost:${PORT}`);
-    console.log(`Login: http://localhost:${PORT}/login.html`);
-    console.log(`Status: http://localhost:${PORT}/api/status`);
-    console.log(`Empresas: http://localhost:${PORT}/api/companies`);
-    console.log(`Autenticação: http://localhost:${PORT}/api/auth/login`);
+    console.log(`Endereço local: http://localhost:${PORT}`);
     console.log('================================');
 });
 
 // ==========================================
-// ENCERRAMENTO ORGANIZADO
+// ERROS DE INICIALIZAÇÃO
 // ==========================================
 
-async function encerrarServidor() {
-    server.close(async () => {
-        await prisma.$disconnect();
-        process.exit(0);
-    });
-}
-
-process.on('SIGINT', encerrarServidor);
-process.on('SIGTERM', encerrarServidor);
+server.on('error', (error) => {
+    console.error('Erro ao iniciar servidor:', error);
+});
