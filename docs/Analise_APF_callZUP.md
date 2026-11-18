@@ -1,8 +1,46 @@
 # Análise de Pontos de Função — callZUP
 
-## 1. Identificação das funções de dados e transacionais
+> **Documento acadêmico — estimativa preliminar**
+>
+> **Projeto:** callZUP — plataforma de comunicação corporativa  
+> **Disciplina:** ______________________________  
+> **Professor(a):** ___________________________  
+> **Integrantes:** _____________________________  
+> **Data:** ____/____/________
 
-### Funções de dados
+## 1. Objetivo
+
+Este documento apresenta uma estimativa preliminar do tamanho funcional do sistema callZUP por meio da Análise de Pontos de Função (APF). O objetivo é identificar as funções de dados e transacionais previstas, classificá-las, registrar as premissas utilizadas e calcular uma estimativa inicial de tamanho e custo com base no valor de R$ 488,00 por ponto de função informado na atividade.
+
+## 2. Escopo considerado
+
+A análise considera as funcionalidades previstas para o callZUP, uma plataforma de comunicação corporativa que contempla:
+
+- Cadastro e gerenciamento de usuários e empresas;
+- Comunicação por mensagens individuais e em grupos;
+- Histórico e pesquisa de mensagens;
+- Compartilhamento de arquivos;
+- Reuniões e participação em reuniões;
+- Compartilhamento de tela;
+- Gerenciamento de perfis, participantes e permissões.
+
+A estimativa considera essas funcionalidades como requisitos planejados, não como confirmação de que todas já estão implementadas. Integrações externas não foram identificadas nesta análise.
+
+## 3. Conceitos e legenda da APF
+
+As funções foram classificadas conforme os cinco tipos de função utilizados na Análise de Pontos de Função:
+
+| Sigla | Nome | Descrição resumida |
+|---|---|---|
+| ALI | Arquivo Lógico Interno | Grupo lógico de dados mantido pelo próprio sistema |
+| AIE | Arquivo de Interface Externa | Grupo lógico de dados mantido por outro sistema e utilizado pelo sistema analisado |
+| EE | Entrada Externa | Processo que recebe dados ou informações de controle e pode manter dados internos |
+| CE | Consulta Externa | Processo que consulta ou apresenta dados sem atualizá-los |
+| SE | Saída Externa | Processo que apresenta ou envia informações derivadas ou resultados para fora do sistema |
+
+## 4. Identificação das funções de dados e transacionais
+
+### 4.1 Funções de dados
 
 | Função | Descrição | Tipo |
 |---|---|---|
@@ -15,7 +53,7 @@
 | Arquivos | Arquivos compartilhados nas conversas | ALI |
 | Permissões | Papéis e níveis de acesso dos usuários | ALI |
 
-### Funções transacionais
+### 4.2 Funções transacionais
 
 | Função | Descrição |
 |---|---|
@@ -32,7 +70,7 @@
 | Gerenciar perfil | Editar informações pessoais |
 | Gerenciar empresa | Administrar configurações corporativas |
 
-## 2. Classificação das funções segundo APF
+## 5. Classificação das funções segundo APF
 
 | Função | Classificação | Justificativa |
 |---|---|---|
@@ -52,15 +90,15 @@
 | Pesquisar mensagens | CE | Consulta dados sem alterar informações |
 | Compartilhar arquivos | EE | Entrada de dados e arquivo para armazenamento |
 | Criar reunião | EE | Entrada de informações para criação de reunião |
-| Participar de reunião | CE | Consulta/entrada em uma reunião existente, considerando que não altera dados relevantes além da sessão |
+| Participar de reunião | CE | Considerada consulta/acesso à reunião, sem atualização de dados funcionais nesta estimativa |
 | Compartilhar tela | EE | Ação que inicia ou controla a transmissão |
 | Gerenciar perfil | EE | Entrada que altera dados do usuário |
 | Gerenciar empresa | EE | Entrada que altera dados corporativos |
 | Notificações | SE | Saída de informações e alertas ao usuário |
 
-> **Observação:** Algumas funções podem mudar de classificação dependendo de como forem implementadas. Por exemplo, participar de reunião pode ser EE se registrar a participação, ou CE se apenas consultar/acessar.
+> **Nota de classificação:** Algumas funções podem mudar de classificação após o detalhamento dos requisitos. Por exemplo, participar de uma reunião pode ser uma EE se registrar ou atualizar dados funcionais de participação, ou CE se apenas consultar/acessar a reunião. O compartilhamento de tela também precisa ser detalhado para confirmar se constitui uma transação funcional independente.
 
-## 3. Premissas adotadas
+## 6. Premissas adotadas
 
 - O callZUP será uma plataforma de comunicação corporativa.
 - Cada empresa poderá possuir vários usuários.
@@ -70,9 +108,11 @@
 - Haverá funcionalidades de reuniões e compartilhamento de tela.
 - Os dados serão armazenados pelo próprio sistema.
 - As permissões serão controladas por perfis de usuário.
+- Não foram identificadas integrações externas na descrição considerada; por isso, AIE foi estimado como zero.
 - A análise considera funcionalidades previstas, não necessariamente já implementadas.
+- Para esta estimativa preliminar, as funções foram consideradas de complexidade média e receberam os pesos adotados na tabela de cálculo abaixo.
 
-## 4. Informações que ainda precisam ser esclarecidas
+## 7. Informações que ainda precisam ser esclarecidas
 
 Antes de realizar uma contagem definitiva, seria necessário esclarecer:
 
@@ -84,12 +124,14 @@ Antes de realizar uma contagem definitiva, seria necessário esclarecer:
 - Existirá painel administrativo e relatórios?
 - As mensagens poderão ser editadas ou excluídas?
 - Haverá recursos de segurança adicionais, como autenticação em dois fatores?
+- O sistema registrará presença, duração ou outros dados das reuniões?
+- O compartilhamento de tela terá controles ou registros próprios?
 
-## 5. Proposta preliminar de estimativa
+## 8. Metodologia e proposta preliminar de estimativa
 
-Considerando uma estimativa inicial de complexidade média:
+Para a atividade, foi realizada uma identificação preliminar das funções de dados e transacionais, seguida de classificação por tipo de função. Como os requisitos ainda não estão detalhados o suficiente para determinar a complexidade de cada função com precisão, foi adotada uma estimativa simplificada considerando complexidade média e os pesos utilizados abaixo.
 
-| Tipo | Quantidade estimada | Peso médio | Total |
+| Tipo | Quantidade estimada | Peso adotado | Total |
 |---|---:|---:|---:|
 | ALI | 8 | 10 | 80 PF |
 | AIE | 0 | 7 | 0 PF |
@@ -98,12 +140,18 @@ Considerando uma estimativa inicial de complexidade média:
 | SE | 1 | 5 | 5 PF |
 | **Total estimado** | **21 funções** | | **133 PF** |
 
-### Estimativa financeira
+### 8.1 Estimativa financeira
 
 Considerando o valor de R$ 488,00 por ponto de função indicado na atividade:
 
-**133 × R$ 488,00 = R$ 64.904,00**
+**133 PF × R$ 488,00 = R$ 64.904,00**
 
-**Estimativa preliminar: R$ 64.904,00.**
+**Valor preliminar estimado: R$ 64.904,00.**
 
-Esse valor é apenas uma estimativa inicial para fins acadêmicos. Uma contagem oficial exigiria detalhar os requisitos, arquivos lógicos, campos, relacionamentos e regras de processamento.
+## 9. Limitações da estimativa
+
+Esta estimativa é preliminar e didática. Não substitui uma contagem formal de Pontos de Função. Para uma avaliação mais precisa, seria necessário detalhar os requisitos, identificar os arquivos lógicos, os tipos de dados, os campos, os relacionamentos, as regras de processamento, as fronteiras do sistema e a complexidade de cada função. A classificação de algumas funcionalidades transacionais também poderá ser revisada conforme as decisões de projeto e os requisitos confirmados.
+
+## 10. Conclusão
+
+A Análise de Pontos de Função permitiu organizar e identificar as principais funcionalidades previstas para o callZUP, separando funções de dados e funções transacionais. Com as premissas adotadas nesta atividade, chegou-se a uma estimativa inicial de **133 Pontos de Função**, equivalente a **R$ 64.904,00** considerando o valor unitário informado de R$ 488,00. O resultado serve como referência inicial para discutir o tamanho funcional e o custo do projeto, devendo ser refinado à medida que os requisitos forem esclarecidos e detalhados.
