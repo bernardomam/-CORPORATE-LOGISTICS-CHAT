@@ -148,3 +148,11 @@ Esta estimativa é preliminar e didática. Não substitui uma contagem formal de
 ## 10. Conclusão
 
 A Análise de Pontos de Função permitiu organizar e identificar as principais funcionalidades previstas para o callZUP, separando funções de dados e funções transacionais. Com as premissas adotadas nesta atividade, chegou-se a uma estimativa inicial de **133 Pontos de Função**, equivalente a **R$ 64.904,00** considerando o valor unitário informado de R$ 488,00. O resultado serve como referência inicial para discutir o tamanho funcional e o custo do projeto, devendo ser refinado à medida que os requisitos forem esclarecidos e detalhados.
+
+## 11. Forma de apresentação e entrega ao cliente
+
+Caso esta análise seja utilizada em uma apresentação ao cliente, recomenda-se preparar uma versão executiva, revisada e aprovada pela equipe, preferencialmente em PDF, para facilitar a leitura, preservar a formatação e servir como documento formal de referência. A entrega pode ser realizada por e-mail ou apresentada em uma reunião de alinhamento, acompanhada de uma explicação sobre o escopo considerado, premissas, estimativa e limitações.
+
+O arquivo Markdown (.md) deve ser mantido no repositório do projeto como fonte editável e histórico técnico. Para o cliente, recomenda-se compartilhar o PDF de apresentação; o Markdown pode ser enviado como material complementar quando o cliente desejar consultar ou reutilizar o conteúdo técnico.
+
+**Importante:** este documento é uma estimativa preliminar acadêmica e não deve ser apresentado como orçamento comercial definitivo, proposta contratual ou compromisso de preço. Antes de enviá-lo ao cliente, a equipe deve validar os requisitos, revisar a contagem de pontos de função e confirmar o valor, o escopo, as condições e a aprovação responsável.
