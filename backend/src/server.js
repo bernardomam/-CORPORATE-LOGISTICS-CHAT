@@ -31,6 +31,11 @@ const FRONTEND_URL =
     process.env.FRONTEND_URL ||
     'https://corporate-logistics-chat-w67h.vercel.app';
 
+const ORIGENS_PERMITIDAS = new Set([
+    'https://corporate-logistics-chat-w67h.vercel.app',
+    FRONTEND_URL
+]);
+
 const FUSO_HORARIO = 'America/Sao_Paulo';
 
 app.disable('x-powered-by');
@@ -45,10 +50,10 @@ app.use((req, res, next) => {
 
     const origem = req.headers.origin;
 
-    if (origem === FRONTEND_URL) {
+    if (ORIGENS_PERMITIDAS.has(origem)) {
         res.setHeader(
             'Access-Control-Allow-Origin',
-            FRONTEND_URL
+            origem
         );
     }
 
@@ -71,7 +76,7 @@ app.use((req, res, next) => {
 
     // Responder à verificação prévia do navegador.
     if (req.method === 'OPTIONS') {
-        if (origem && origem !== FRONTEND_URL) {
+        if (origem && !ORIGENS_PERMITIDAS.has(origem)) {
             return res.status(403).end();
         }
 
