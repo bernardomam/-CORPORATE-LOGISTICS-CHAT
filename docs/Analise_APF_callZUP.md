@@ -1,12 +1,5 @@
 # Análise de Pontos de Função — callZUP
 
-> **Documento acadêmico — estimativa preliminar**
->
-> **Projeto:** callZUP — plataforma de comunicação corporativa  
-> **Disciplina:** ______________________________  
-> **Professor(a):** ___________________________  
-> **Integrantes:** _____________________________  
-> **Data:** ____/____/________
 
 ## 1. Objetivo
 
