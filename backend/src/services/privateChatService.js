@@ -1,6 +1,8 @@
 
 import { prisma } from '../config/prisma.js';
-import { verificarHorarioFuncionamento } from '../utils/horarioFuncionamento.js';
+import {
+    verificarHorarioFuncionamento
+} from '../utils/horarioFuncionamento.js';
 
 function criarErro(mensagem, status = 400) {
     const error = new Error(mensagem);
@@ -10,15 +12,14 @@ function criarErro(mensagem, status = 400) {
 
 function validarUsuario(usuario) {
     if (!usuario?.id || !usuario?.companyId) {
-        throw criarErro('Usuario nao identificado.', 401);
+        throw criarErro('Usuário não identificado.', 401);
     }
 }
 
-// Restringe o acesso ao horario de funcionamento de Brasilia.
 function validarHorario() {
     if (!verificarHorarioFuncionamento()) {
         throw criarErro(
-            'Acesso permitido somente das 08h as 18h, no horario de Brasilia.',
+            'O envio de mensagens é permitido somente das 08:00 às 18:00, no horário de Brasília.',
             403
         );
     }
@@ -30,7 +31,6 @@ function validarIdentificador(valor, mensagem) {
     }
 }
 
-// Todos os usuarios, inclusive a TI, precisam ser participantes.
 function filtroAcessoConversa(usuario) {
     return {
         members: {
@@ -41,10 +41,13 @@ function filtroAcessoConversa(usuario) {
     };
 }
 
-async function buscarConversaDoParticipante(usuario, conversaId) {
+async function buscarConversaDoParticipante(
+    usuario,
+    conversaId
+) {
     validarIdentificador(
         conversaId,
-        'Identificador da conversa invalido.'
+        'Identificador da conversa inválido.'
     );
 
     const conversa = await prisma.privateChat.findFirst({
@@ -63,7 +66,7 @@ async function buscarConversaDoParticipante(usuario, conversaId) {
 
     if (!conversa) {
         throw criarErro(
-            'Conversa nao encontrada ou voce nao tem permissao para acessa-la.',
+            'Conversa não encontrada ou você não tem permissão para acessá-la.',
             403
         );
     }
@@ -71,10 +74,14 @@ async function buscarConversaDoParticipante(usuario, conversaId) {
     return conversa;
 }
 
-async function buscarMensagemDaConversa(usuario, conversaId, mensagemId) {
+async function buscarMensagemDaConversa(
+    usuario,
+    conversaId,
+    mensagemId
+) {
     validarIdentificador(
         mensagemId,
-        'Identificador da mensagem invalido.'
+        'Identificador da mensagem inválido.'
     );
 
     const mensagem = await prisma.message.findFirst({
@@ -90,7 +97,7 @@ async function buscarMensagemDaConversa(usuario, conversaId, mensagemId) {
 
     if (!mensagem) {
         throw criarErro(
-            'Mensagem nao encontrada nesta conversa.',
+            'Mensagem não encontrada nesta conversa.',
             404
         );
     }
@@ -129,10 +136,8 @@ function incluirDadosMensagem() {
     };
 }
 
-// Cada usuario visualiza somente conversas das quais participa.
 export async function listarConversasPrivadas(usuario) {
     validarUsuario(usuario);
-    validarHorario();
 
     return prisma.privateChat.findMany({
         where: {
@@ -172,9 +177,11 @@ export async function listarConversasPrivadas(usuario) {
     });
 }
 
-export async function listarMensagensPrivadas(usuario, conversaId) {
+export async function listarMensagensPrivadas(
+    usuario,
+    conversaId
+) {
     validarUsuario(usuario);
-    validarHorario();
 
     const conversa = await buscarConversaDoParticipante(
         usuario,
@@ -203,7 +210,7 @@ export async function enviarMensagemPrivada(
     validarHorario();
 
     if (typeof content !== 'string' || !content.trim()) {
-        throw criarErro('A mensagem nao pode estar vazia.');
+        throw criarErro('A mensagem não pode estar vazia.');
     }
 
     const conteudo = content.trim();
@@ -224,7 +231,7 @@ export async function enviarMensagemPrivada(
     if (replyToId !== null && replyToId !== undefined) {
         validarIdentificador(
             replyToId,
-            'Identificador da mensagem respondida invalido.'
+            'Identificador da mensagem respondida inválido.'
         );
 
         const mensagemOriginal = await buscarMensagemDaConversa(
@@ -235,6 +242,8 @@ export async function enviarMensagemPrivada(
 
         mensagemRespondidaId = mensagemOriginal.id;
     }
+
+    validarHorario();
 
     return prisma.$transaction(async (tx) => {
         const mensagem = await tx.message.create({
@@ -271,14 +280,13 @@ export async function reagirMensagemPrivada(
     emoji
 ) {
     validarUsuario(usuario);
-    validarHorario();
 
     if (
         typeof emoji !== 'string' ||
         !emoji.trim() ||
         emoji.trim().length > 32
     ) {
-        throw criarErro('Informe uma reacao valida.');
+        throw criarErro('Informe uma reação válida.');
     }
 
     const conversa = await buscarConversaDoParticipante(
@@ -324,7 +332,6 @@ export async function removerReacaoMensagemPrivada(
     mensagemId
 ) {
     validarUsuario(usuario);
-    validarHorario();
 
     const conversa = await buscarConversaDoParticipante(
         usuario,
@@ -346,13 +353,13 @@ export async function removerReacaoMensagemPrivada(
 
     if (resultado.count === 0) {
         throw criarErro(
-            'Voce ainda nao reagiu a esta mensagem.',
+            'Você ainda não reagiu a esta mensagem.',
             404
         );
     }
 
     return {
         removida: true,
-        mensagem: 'Reacao removida com sucesso.'
+        mensagem: 'Reação removida com sucesso.'
     };
 }

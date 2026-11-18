@@ -1,32 +1,30 @@
 
 import { prisma } from '../config/prisma.js';
-import { verificarHorarioFuncionamento } from '../utils/horarioFuncionamento.js';
+import {
+    verificarHorarioFuncionamento
+} from '../utils/horarioFuncionamento.js';
 
-// Cria erros com código HTTP.
 function criarErro(mensagem, status = 400) {
     const error = new Error(mensagem);
     error.status = status;
     return error;
 }
 
-// Valida a identificação do usuário autenticado.
 function validarUsuario(usuario) {
     if (!usuario?.id || !usuario?.companyId) {
         throw criarErro('Usuário não identificado.', 401);
     }
 }
 
-// Verifica o horário de funcionamento do CalZup.
 function validarHorario() {
     if (!verificarHorarioFuncionamento()) {
         throw criarErro(
-            'O CalZup funciona somente das 08h às 18h, no horário de Brasília.',
+            'O envio de mensagens é permitido somente das 08:00 às 18:00, no horário de Brasília.',
             403
         );
     }
 }
 
-// Verifica se o usuário é integrante ativo do grupo.
 async function buscarGrupoDoParticipante(usuario, grupoId) {
     if (
         typeof grupoId !== 'string' ||
@@ -64,7 +62,6 @@ async function buscarGrupoDoParticipante(usuario, grupoId) {
     return grupo;
 }
 
-// Dados apresentados junto com cada mensagem.
 const incluirDadosMensagem = {
     sender: {
         select: {
@@ -102,7 +99,6 @@ const incluirDadosMensagem = {
     }
 };
 
-// Confere se a mensagem pertence ao grupo e à empresa.
 async function buscarMensagemDoGrupo(
     usuario,
     grupoId,
@@ -138,10 +134,8 @@ async function buscarMensagemDoGrupo(
     return mensagem;
 }
 
-// Consultar histórico de mensagens do grupo.
 export async function listarMensagensGrupo(usuario, grupoId) {
     validarUsuario(usuario);
-    validarHorario();
 
     const grupo = await buscarGrupoDoParticipante(
         usuario,
@@ -160,7 +154,6 @@ export async function listarMensagensGrupo(usuario, grupoId) {
     });
 }
 
-// Enviar mensagem ou responder a outra mensagem.
 export async function enviarMensagemGrupo(
     usuario,
     grupoId,
@@ -211,6 +204,9 @@ export async function enviarMensagemGrupo(
         mensagemRespondidaId = mensagemOriginal.id;
     }
 
+    // Revalidar antes de gravar a mensagem.
+    validarHorario();
+
     return prisma.message.create({
         data: {
             content: conteudo,
@@ -226,7 +222,6 @@ export async function enviarMensagemGrupo(
     });
 }
 
-// Adicionar ou atualizar a reação do usuário.
 export async function reagirMensagemGrupo(
     usuario,
     grupoId,
@@ -234,7 +229,6 @@ export async function reagirMensagemGrupo(
     emoji
 ) {
     validarUsuario(usuario);
-    validarHorario();
 
     if (
         typeof emoji !== 'string' ||
@@ -282,14 +276,12 @@ export async function reagirMensagemGrupo(
     });
 }
 
-// Remover somente a própria reação.
 export async function removerReacaoMensagemGrupo(
     usuario,
     grupoId,
     mensagemId
 ) {
     validarUsuario(usuario);
-    validarHorario();
 
     const grupo = await buscarGrupoDoParticipante(
         usuario,

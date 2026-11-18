@@ -2,19 +2,15 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma.js';
-
-// ==========================================
-// AUTENTICAR USUÁRIO
-// ==========================================
+import {
+    verificarHorarioFuncionamento
+} from '../utils/horarioFuncionamento.js';
 
 export async function autenticarUsuario(email, password) {
-    // Restrição de horário temporariamente desativada
-    // durante o desenvolvimento e os testes.
-    //
-    // Antes da entrega final do CalZup,
-    // restaurar a regra das 08h às 18h.
+    if (!verificarHorarioFuncionamento()) {
+        throw new Error('FORA_DO_HORARIO');
+    }
 
-    // Validar os tipos dos dados recebidos.
     if (
         typeof email !== 'string' ||
         typeof password !== 'string' ||
@@ -24,14 +20,12 @@ export async function autenticarUsuario(email, password) {
         throw new Error('EMAIL_SENHA_OBRIGATORIOS');
     }
 
-    // Limitar o tamanho das entradas.
     if (email.length > 254 || password.length > 1024) {
         throw new Error('CREDENCIAIS_INVALIDAS');
     }
 
     const emailNormalizado = email.trim().toLowerCase();
 
-    // Consultar somente os campos necessários.
     const usuario = await prisma.user.findUnique({
         where: {
             email: emailNormalizado
@@ -53,12 +47,10 @@ export async function autenticarUsuario(email, password) {
         }
     });
 
-    // Evitar revelar se o e-mail existe.
     if (!usuario) {
         throw new Error('CREDENCIAIS_INVALIDAS');
     }
 
-    // Verificar a senha antes de liberar o acesso.
     const senhaValida = await bcrypt.compare(
         password,
         usuario.passwordHash
@@ -68,7 +60,6 @@ export async function autenticarUsuario(email, password) {
         throw new Error('CREDENCIAIS_INVALIDAS');
     }
 
-    // Impedir login de usuários ou empresas inativas.
     if (usuario.status !== 'ACTIVE') {
         throw new Error('USUARIO_INATIVO');
     }
@@ -80,7 +71,6 @@ export async function autenticarUsuario(email, password) {
         throw new Error('EMPRESA_INATIVA');
     }
 
-    // Validar a configuração de autenticação.
     const chaveJWT = process.env.JWT_SECRET;
 
     if (
@@ -91,7 +81,6 @@ export async function autenticarUsuario(email, password) {
         throw new Error('JWT_SECRET_NAO_CONFIGURADO');
     }
 
-    // Criar token compatível com authMiddleware.js.
     const token = jwt.sign(
         {
             companyId: usuario.companyId,
@@ -105,7 +94,6 @@ export async function autenticarUsuario(email, password) {
         }
     );
 
-    // Nunca retornar passwordHash.
     return {
         token,
         usuario: {
