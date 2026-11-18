@@ -15,7 +15,8 @@ A análise considera as funcionalidades previstas para o callZUP, uma plataforma
 - Compartilhamento de arquivos;
 - Reuniões e participação em reuniões;
 - Compartilhamento de tela;
-- Gerenciamento de perfis, participantes e permissões.
+- Gerenciamento de perfis, participantes e permissões;
+- Implementação interna dos mecanismos de segurança pela equipe de desenvolvimento, incluindo autenticação, autorização, proteção de dados e controles de acesso.
 
 A estimativa considera essas funcionalidades como requisitos planejados, não como confirmação de que todas já estão implementadas. Integrações externas não foram identificadas nesta análise.
 
@@ -101,6 +102,8 @@ As funções foram classificadas conforme os cinco tipos de função utilizados 
 - Haverá funcionalidades de reuniões e compartilhamento de tela.
 - Os dados serão armazenados pelo próprio sistema.
 - As permissões serão controladas por perfis de usuário.
+- A segurança do callZUP será implementada e mantida pela própria equipe de desenvolvimento; não está sendo considerada como serviço terceirizado ou integração externa.
+- Os requisitos de segurança (por exemplo, autenticação, autorização, proteção de dados e, se definido, autenticação em dois fatores) fazem parte do escopo do produto. Suas funções específicas deverão ser detalhadas e contabilizadas na APF quando identificadas como processos funcionais e/ou funções de dados independentes.
 - Não foram identificadas integrações externas na descrição considerada; por isso, AIE foi estimado como zero.
 - A análise considera funcionalidades previstas, não necessariamente já implementadas.
 - Para esta estimativa preliminar, as funções foram consideradas de complexidade média e receberam os pesos adotados na tabela de cálculo abaixo.
@@ -116,7 +119,7 @@ Antes de realizar uma contagem definitiva, seria necessário esclarecer:
 - Haverá notificações por e-mail, push ou apenas dentro do sistema?
 - Existirá painel administrativo e relatórios?
 - As mensagens poderão ser editadas ou excluídas?
-- Haverá recursos de segurança adicionais, como autenticação em dois fatores?
+- Quais requisitos de segurança serão implementados pela equipe (por exemplo, autenticação em dois fatores, recuperação de conta, políticas de senha, auditoria e controles adicionais)?
 - O sistema registrará presença, duração ou outros dados das reuniões?
 - O compartilhamento de tela terá controles ou registros próprios?
 
@@ -140,6 +143,10 @@ Considerando o valor de R$ 488,00 por ponto de função indicado na atividade:
 **133 PF × R$ 488,00 = R$ 64.904,00**
 
 **Valor preliminar estimado: R$ 64.904,00.**
+
+### 8.2 Segurança como responsabilidade da equipe
+
+A segurança é responsabilidade da equipe de desenvolvimento do callZUP e integra o escopo do produto. Não foi considerada contratação de serviço externo para desenvolver ou fornecer os mecanismos de segurança. A estimativa atual não adiciona pontos de função genéricos apenas por existir o requisito de segurança; funcionalidades específicas, como autenticação, recuperação de conta, gerenciamento de permissões, auditoria ou autenticação em dois fatores, deverão ser detalhadas e avaliadas individualmente para evitar omissões ou dupla contagem.
 
 ## 9. Limitações da estimativa
 
