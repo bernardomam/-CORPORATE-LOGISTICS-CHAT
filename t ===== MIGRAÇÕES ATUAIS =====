@@ -1,0 +1,21 @@
+[1mdiff --git "a/.\\src\\services\\privateChatService.js" "b/..\\CalZup-github\\backend\\src\\services\\privateChatService.js"[m
+[1mindex 22d2cb8..75f2116 100644[m
+[1m--- "a/.\\src\\services\\privateChatService.js"[m
+[1m+++ "b/..\\CalZup-github\\backend\\src\\services\\privateChatService.js"[m
+[36m@@ -14,13 +14,11 @@[m [mfunction validarUsuario(usuario) {[m
+     }[m
+ }[m
+ [m
+[31m-// Restringe o acesso ao horario de funcionamento de Brasilia.[m
+[32m+[m[32m// TEMPORARIO: horario liberado durante os testes.[m
+[32m+[m[32m// Restaurar a validacao das 08h as 18h antes da entrega final.[m
+ function validarHorario() {[m
+     if (!verificarHorarioFuncionamento()) {[m
+[31m-        throw criarErro([m
+[31m-            'Acesso permitido somente das 08h as 18h, no horario de Brasilia.',[m
+[31m-            403[m
+[31m-        );[m
+[32m+[m[32m        throw criarErro('Acesso permitido somente das 08h as 18h, no horario de Brasilia.', 403);[m
+     }[m
+ }[m
+ [m

@@ -1,0 +1,213 @@
+
+generator client {
+  provider = "prisma-client"
+  output                 = "../src/generated/prisma"
+  importFileExtension    = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id           String        @id @default(uuid()) @db.Uuid
+  name         String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  status       CompanyStatus @default(ACTIVE)
+  departments  Department[]
+  groups       Group[]
+  messages     Message[]
+  users        User[]
+  privateChats PrivateChat[]
+  chatRequests ChatRequest[]
+}
+
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  companyId String   @db.Uuid
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id])
+  users     User[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model User {
+  id                      String              @id @default(uuid()) @db.Uuid
+  name                    String
+  email                   String              @unique
+  passwordHash            String
+  role                    UserRole            @default(USER)
+  status                  UserStatus          @default(ACTIVE)
+  companyId               String              @db.Uuid
+  departmentId            String?             @db.Uuid
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  groupMembers            GroupMember[]
+  messages                Message[]
+  messageReactions        MessageReaction[]
+  company                 Company             @relation(fields: [companyId], references: [id])
+  department              Department?         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  createdPrivateChats     PrivateChat[]       @relation("PrivateChatCreator")
+  privateChatMemberships  PrivateChatMember[]
+  sentChatRequests        ChatRequest[]       @relation("ChatRequestRequester")
+  receivedChatRequests    ChatRequest[]       @relation("ChatRequestTarget")
+  reviewedChatRequests    ChatRequest[]       @relation("ChatRequestReviewer")
+
+  @@index([companyId])
+  @@index([departmentId])
+}
+
+model Group {
+  id        String        @id @default(uuid()) @db.Uuid
+  name      String
+  companyId String        @db.Uuid
+  status    GroupStatus   @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  company   Company       @relation(fields: [companyId], references: [id])
+  members   GroupMember[]
+  messages  Message[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model GroupMember {
+  id       String    @id @default(uuid()) @db.Uuid
+  groupId  String    @db.Uuid
+  userId   String    @db.Uuid
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, userId])
+  @@index([userId])
+}
+
+model PrivateChat {
+  id          String              @id @default(uuid()) @db.Uuid
+  companyId   String              @db.Uuid
+  createdById String              @db.Uuid
+  pairKey     String?             @db.VarChar(73)
+  status      PrivateChatStatus   @default(ACTIVE)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  company     Company             @relation(fields: [companyId], references: [id])
+  createdBy   User                @relation("PrivateChatCreator", fields: [createdById], references: [id])
+  members     PrivateChatMember[]
+  messages    Message[]
+
+  @@unique([companyId, pairKey])
+  @@index([companyId, status])
+  @@index([createdById])
+}
+
+model PrivateChatMember {
+  id            String      @id @default(uuid()) @db.Uuid
+  privateChatId String      @db.Uuid
+  userId        String      @db.Uuid
+  joinedAt      DateTime    @default(now())
+  privateChat   PrivateChat @relation(fields: [privateChatId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([privateChatId, userId])
+  @@index([userId])
+}
+
+model ChatRequest {
+  id              String            @id @default(uuid()) @db.Uuid
+  companyId       String            @db.Uuid
+  requesterId     String            @db.Uuid
+  requestedUserId String            @db.Uuid
+  reviewedById    String?           @db.Uuid
+  status          ChatRequestStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  reviewedAt      DateTime?
+  company         Company           @relation(fields: [companyId], references: [id])
+  requester       User              @relation("ChatRequestRequester", fields: [requesterId], references: [id])
+  requestedUser   User              @relation("ChatRequestTarget", fields: [requestedUserId], references: [id])
+  reviewedBy      User?             @relation("ChatRequestReviewer", fields: [reviewedById], references: [id])
+
+  @@index([companyId, status, createdAt])
+  @@index([requesterId])
+  @@index([requestedUserId])
+}
+
+model Message {
+  id            String           @id @default(uuid()) @db.Uuid
+  content       String
+  type          MessageType      @default(TEXT)
+  companyId     String           @db.Uuid
+  userId        String           @db.Uuid
+  groupId       String?          @db.Uuid
+  privateChatId String?          @db.Uuid
+  replyToId     String?          @db.Uuid
+  createdAt     DateTime         @default(now())
+  company       Company          @relation(fields: [companyId], references: [id])
+  group         Group?           @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  privateChat   PrivateChat?     @relation(fields: [privateChatId], references: [id], onDelete: Restrict)
+  sender        User             @relation(fields: [userId], references: [id])
+  replyTo       Message?         @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: Restrict)
+  replies       Message[]        @relation("MessageReplies")
+  reactions     MessageReaction[]
+
+  @@index([companyId, createdAt])
+  @@index([userId])
+  @@index([groupId, createdAt])
+  @@index([privateChatId, createdAt])
+  @@index([replyToId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  emoji     String   @db.VarChar(32)
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum UserRole {
+  USER
+  IT_ADMIN
+}
+
+enum GroupStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PrivateChatStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ChatRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+}
