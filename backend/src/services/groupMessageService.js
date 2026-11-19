@@ -16,11 +16,11 @@ function validarUsuario(usuario) {
     }
 }
 
-// Verifica o horário de funcionamento do CalZup.
+// Verifica o horário de funcionamento do CallZup.
 function validarHorario() {
     if (!verificarHorarioFuncionamento()) {
         throw criarErro(
-            'O CalZup funciona somente das 08h às 18h, no horário de Brasília.',
+            'O CallZup funciona somente das 08h às 18h, no horário de Brasília.',
             403
         );
     }

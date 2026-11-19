@@ -6,46 +6,103 @@ import {
     rejeitarSolicitacao
 } from '../services/chatRequestService.js';
 
-// Encaminhar erros ao middleware global de segurança
-function tratarErro(error, next) {
-    return next(error);
+// ==========================================
+// RESPOSTAS DE ERRO
+// ==========================================
+
+function responderErro(res, status, mensagem) {
+    return res.status(status).json({
+        sucesso: false,
+        mensagem
+    });
 }
 
-// Usuário solicita uma conversa privada
-export async function solicitar(req, res, next) {
+function tratarErro(res, error, operacao) {
+    if (
+        Number.isInteger(error?.status) &&
+        error.status >= 400 &&
+        error.status < 500
+    ) {
+        return responderErro(
+            res,
+            error.status,
+            error.message
+        );
+    }
+
+    console.error(
+        `Erro interno ao ${operacao}:`,
+        error
+    );
+
+    return responderErro(
+        res,
+        500,
+        `Erro interno ao ${operacao}.`
+    );
+}
+
+// ==========================================
+// SOLICITAR CONVERSA
+// POST /
+// ==========================================
+
+export async function solicitar(req, res) {
     try {
+        const requestedUserId = req.body?.requestedUserId;
+
         const solicitacao = await solicitarConversa(
             req.user,
-            req.body?.requestedUserId
+            requestedUserId
         );
 
         return res.status(201).json({
             sucesso: true,
-            mensagem: 'Solicitação enviada para a equipe de TI.',
+            mensagem: 'Solicitação enviada com sucesso!',
             solicitacao
         });
+
     } catch (error) {
-        return tratarErro(error, next);
+        return tratarErro(
+            res,
+            error,
+            'solicitar conversa'
+        );
     }
 }
 
-// TI lista as solicitações
-export async function listar(req, res, next) {
+// ==========================================
+// LISTAR SOLICITAÇÕES
+// GET /
+// ==========================================
+
+export async function listar(req, res) {
     try {
-        const solicitacoes = await listarSolicitacoes(req.user);
+        const solicitacoes = await listarSolicitacoes(
+            req.user
+        );
 
         return res.status(200).json({
             sucesso: true,
             total: solicitacoes.length,
             solicitacoes
         });
+
     } catch (error) {
-        return tratarErro(error, next);
+        return tratarErro(
+            res,
+            error,
+            'listar solicitações'
+        );
     }
 }
 
-// TI aprova uma solicitação
-export async function aprovar(req, res, next) {
+// ==========================================
+// APROVAR SOLICITAÇÃO
+// PATCH /:id/aprovar
+// ==========================================
+
+export async function aprovar(req, res) {
     try {
         const resultado = await aprovarSolicitacao(
             req.user,
@@ -54,16 +111,25 @@ export async function aprovar(req, res, next) {
 
         return res.status(200).json({
             sucesso: true,
-            mensagem: 'Solicitação aprovada e conversa criada com sucesso!',
-            resultado
+            mensagem: 'Solicitação aprovada com sucesso!',
+            ...resultado
         });
+
     } catch (error) {
-        return tratarErro(error, next);
+        return tratarErro(
+            res,
+            error,
+            'aprovar solicitação'
+        );
     }
 }
 
-// TI rejeita uma solicitação
-export async function rejeitar(req, res, next) {
+// ==========================================
+// REJEITAR SOLICITAÇÃO
+// PATCH /:id/rejeitar
+// ==========================================
+
+export async function rejeitar(req, res) {
     try {
         const solicitacao = await rejeitarSolicitacao(
             req.user,
@@ -72,10 +138,15 @@ export async function rejeitar(req, res, next) {
 
         return res.status(200).json({
             sucesso: true,
-            mensagem: 'Solicitação rejeitada com sucesso.',
+            mensagem: 'Solicitação rejeitada com sucesso!',
             solicitacao
         });
+
     } catch (error) {
-        return tratarErro(error, next);
+        return tratarErro(
+            res,
+            error,
+            'rejeitar solicitação'
+        );
     }
 }

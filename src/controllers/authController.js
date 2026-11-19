@@ -72,7 +72,7 @@ export async function login(req, res) {
             return res.status(403).json({
                 sucesso: false,
                 mensagem:
-                    'O CalZup funciona somente das 08h às 18h, no horário de Brasília.'
+                    'O Callzup funciona somente das 08h às 18h, no horário de Brasília.'
             });
         }
 

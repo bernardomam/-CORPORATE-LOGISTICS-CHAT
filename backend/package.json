@@ -1,9 +1,9 @@
 {
-  "name": "calzup-backend",
+  "name": "callzup-backend",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Backend do CalZup",
+  "description": "Backend do CallZup",
   "scripts": {
     "dev": "nodemon --exec tsx src/server.js",
     "start": "tsx src/server.js",

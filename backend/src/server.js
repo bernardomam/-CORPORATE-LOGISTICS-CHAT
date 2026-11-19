@@ -1,4 +1,4 @@
-﻿
+
 import 'dotenv/config';
 import express from 'express';
 
@@ -75,7 +75,7 @@ app.use('/api', (req, res, next) => {
 app.get('/', (req, res) => {
     return res.status(200).json({
         sucesso: true,
-        mensagem: 'API do CalZup funcionando'
+        mensagem: 'API do CallZup funcionando'
     });
 });
 
@@ -154,7 +154,7 @@ export default app;
 if (process.env.VERCEL !== '1') {
     const server = app.listen(PORT, () => {
         console.log('================================');
-        console.log('CALZUP - BACKEND');
+        console.log('CALLZUP - BACKEND');
         console.log('================================');
         console.log(`Servidor rodando na porta ${PORT}`);
         console.log(`Endereço local: http://localhost:${PORT}`);

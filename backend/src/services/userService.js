@@ -67,7 +67,7 @@ export async function criarUsuario({
         throw new Error('SENHA_MINIMA');
     }
 
-    // Somente os perfis previstos pelo CalZup.
+    // Somente os perfis previstos pelo CallZup.
     if (!['USER', 'IT_ADMIN'].includes(role)) {
         throw new Error('PERFIL_INVALIDO');
     }

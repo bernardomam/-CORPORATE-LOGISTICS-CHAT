@@ -1,4 +1,4 @@
-﻿
+
 import 'dotenv/config';
 import express from 'express';
 
@@ -135,7 +135,7 @@ function obterHorarioBrasilia(data = new Date()) {
 app.get('/', (req, res) => {
     return res.status(200).json({
         sucesso: true,
-        mensagem: 'API do CalZup funcionando',
+        mensagem: 'API do Callzup funcionando',
         horarioServidor: obterHorarioBrasilia(),
         fusoHorario: FUSO_HORARIO
     });
@@ -216,7 +216,7 @@ export default app;
 if (process.env.VERCEL !== '1') {
     const server = app.listen(PORT, () => {
         console.log('================================');
-        console.log('CALZUP - BACKEND');
+        console.log('CALLZUP - BACKEND');
         console.log(`Porta: ${PORT}`);
         console.log(`URL: http://localhost:${PORT}`);
         console.log(`Horário: ${obterHorarioBrasilia()}`);

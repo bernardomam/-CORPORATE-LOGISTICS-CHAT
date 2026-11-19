@@ -6,11 +6,17 @@ import {
     verificarHorarioFuncionamento
 } from '../utils/horarioFuncionamento.js';
 
+// ==========================================
+// AUTENTICAR USUÁRIO
+// ==========================================
+
 export async function autenticarUsuario(email, password) {
+    // Verificar o horário permitido para login.
     if (!verificarHorarioFuncionamento()) {
         throw new Error('FORA_DO_HORARIO');
     }
 
+    // Validar os dados recebidos.
     if (
         typeof email !== 'string' ||
         typeof password !== 'string' ||
@@ -20,12 +26,22 @@ export async function autenticarUsuario(email, password) {
         throw new Error('EMAIL_SENHA_OBRIGATORIOS');
     }
 
+    // Limitar o tamanho das credenciais.
     if (email.length > 254 || password.length > 1024) {
         throw new Error('CREDENCIAIS_INVALIDAS');
     }
 
+    // Padronizar o e-mail.
     const emailNormalizado = email.trim().toLowerCase();
 
+    // Consulta inicial de autenticação.
+    //
+    // Esta consulta ocorre antes de existir um usuário
+    // autenticado, portanto não utiliza executarComContextoRLS.
+    //
+    // Antes de ativar RLS com um usuário PostgreSQL sem
+    // BYPASSRLS, será necessário definir uma estratégia
+    // segura para esta consulta inicial.
     const usuario = await prisma.user.findUnique({
         where: {
             email: emailNormalizado
@@ -47,10 +63,12 @@ export async function autenticarUsuario(email, password) {
         }
     });
 
+    // Não revelar se o e-mail existe.
     if (!usuario) {
         throw new Error('CREDENCIAIS_INVALIDAS');
     }
 
+    // Comparar a senha informada com o hash armazenado.
     const senhaValida = await bcrypt.compare(
         password,
         usuario.passwordHash
@@ -60,10 +78,12 @@ export async function autenticarUsuario(email, password) {
         throw new Error('CREDENCIAIS_INVALIDAS');
     }
 
+    // Verificar se o usuário continua ativo.
     if (usuario.status !== 'ACTIVE') {
         throw new Error('USUARIO_INATIVO');
     }
 
+    // Verificar se a empresa continua ativa.
     if (
         !usuario.company ||
         usuario.company.status !== 'ACTIVE'
@@ -71,6 +91,7 @@ export async function autenticarUsuario(email, password) {
         throw new Error('EMPRESA_INATIVA');
     }
 
+    // Verificar a configuração da chave JWT.
     const chaveJWT = process.env.JWT_SECRET;
 
     if (
@@ -81,6 +102,7 @@ export async function autenticarUsuario(email, password) {
         throw new Error('JWT_SECRET_NAO_CONFIGURADO');
     }
 
+    // Criar token JWT com validade de 8 horas.
     const token = jwt.sign(
         {
             companyId: usuario.companyId,
@@ -94,6 +116,8 @@ export async function autenticarUsuario(email, password) {
         }
     );
 
+    // Retornar token e dados públicos do usuário.
+    // Nunca retornar passwordHash.
     return {
         token,
         usuario: {

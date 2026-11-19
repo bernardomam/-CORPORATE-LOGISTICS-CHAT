@@ -11,7 +11,7 @@ export async function autenticarUsuario(email, password) {
     // Restrição de horário temporariamente desativada
     // durante o desenvolvimento e os testes.
     //
-    // Antes da entrega final do CalZup,
+    // Antes da entrega final do CallZup,
     // restaurar a regra das 08h às 18h.
 
     // Validar os tipos dos dados recebidos.
