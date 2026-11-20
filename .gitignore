@@ -21,3 +21,25 @@ dist/
 
 # Prisma Client gerado automaticamente
 src/generated/prisma/
+
+# Variáveis de ambiente e credenciais
+.env
+.env.*
+!.env.example
+!.env.sample
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+
+# Dependências e arquivos temporários
+node_modules/
+.next/
+dist/
+.vercel/
+*.log
+
+# Backups de banco de dados
+*.dump
+backup-calzup/
+
