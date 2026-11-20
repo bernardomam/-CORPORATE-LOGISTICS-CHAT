@@ -25,6 +25,30 @@ function corpoValido(body) {
 }
 
 // ==========================================
+// TRATAMENTO DE ERROS DE ACESSO
+// ==========================================
+
+function responderErroAcesso(res, error) {
+    if (error?.message === 'USUARIO_NAO_AUTENTICADO') {
+        return responderErro(
+            res,
+            401,
+            'Usuário não autenticado.'
+        );
+    }
+
+    if (error?.message === 'ACESSO_NEGADO') {
+        return responderErro(
+            res,
+            403,
+            'Acesso permitido somente à equipe de TI.'
+        );
+    }
+
+    return null;
+}
+
+// ==========================================
 // CADASTRAR USUÁRIO
 // ==========================================
 
@@ -46,15 +70,15 @@ export async function cadastrar(req, res) {
             role
         } = req.body;
 
-        // O companyId vem exclusivamente da sessão
-        // autenticada, nunca do corpo da requisição.
+        // A empresa será obtida da sessão autenticada.
+        // Não aceitar companyId do corpo da requisição.
         const usuario = await criarUsuario({
             name,
             email,
             password,
             departmentId,
-            companyId: req.user.companyId,
-            role
+            role,
+            administrador: req.user
         });
 
         return res.status(201).json({
@@ -88,6 +112,14 @@ export async function cadastrar(req, res) {
             PERFIL_INVALIDO: [
                 400,
                 'Perfil de usuário inválido.'
+            ],
+            USUARIO_NAO_AUTENTICADO: [
+                401,
+                'Usuário não autenticado.'
+            ],
+            ACESSO_NEGADO: [
+                403,
+                'Acesso permitido somente à equipe de TI.'
             ]
         };
 
@@ -101,7 +133,10 @@ export async function cadastrar(req, res) {
             );
         }
 
-        console.error('Erro interno ao cadastrar usuário:', error);
+        console.error(
+            'Erro interno ao cadastrar usuário:',
+            error
+        );
 
         return responderErro(
             res,
@@ -117,9 +152,7 @@ export async function cadastrar(req, res) {
 
 export async function listar(req, res) {
     try {
-        const usuarios = await listarUsuarios(
-            req.user.companyId
-        );
+        const usuarios = await listarUsuarios(req.user);
 
         return res.status(200).json({
             sucesso: true,
@@ -128,7 +161,17 @@ export async function listar(req, res) {
         });
 
     } catch (error) {
-        console.error('Erro interno ao listar usuários:', error);
+        if (
+            error?.message === 'USUARIO_NAO_AUTENTICADO' ||
+            error?.message === 'ACESSO_NEGADO'
+        ) {
+            return responderErroAcesso(res, error);
+        }
+
+        console.error(
+            'Erro interno ao listar usuários:',
+            error
+        );
 
         return responderErro(
             res,
@@ -146,7 +189,10 @@ export async function desativar(req, res) {
     try {
         const id = req.params.id;
 
-        if (typeof id !== 'string' || id.trim().length === 0) {
+        if (
+            typeof id !== 'string' ||
+            id.trim().length === 0
+        ) {
             return responderErro(
                 res,
                 400,
@@ -156,8 +202,7 @@ export async function desativar(req, res) {
 
         const usuario = await desativarUsuario(
             id,
-            req.user.companyId,
-            req.user.id
+            req.user
         );
 
         return res.status(200).json({
@@ -175,6 +220,14 @@ export async function desativar(req, res) {
             USUARIO_NAO_ENCONTRADO: [
                 404,
                 'Usuário não encontrado nesta empresa.'
+            ],
+            USUARIO_NAO_AUTENTICADO: [
+                401,
+                'Usuário não autenticado.'
+            ],
+            ACESSO_NEGADO: [
+                403,
+                'Acesso permitido somente à equipe de TI.'
             ]
         };
 
@@ -188,7 +241,10 @@ export async function desativar(req, res) {
             );
         }
 
-        console.error('Erro interno ao desativar usuário:', error);
+        console.error(
+            'Erro interno ao desativar usuário:',
+            error
+        );
 
         return responderErro(
             res,

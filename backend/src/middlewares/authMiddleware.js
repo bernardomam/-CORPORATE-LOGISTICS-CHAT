@@ -21,7 +21,7 @@ export async function autenticarToken(req, res, next) {
     try {
         const cabecalho = req.headers.authorization;
 
-        // Aceitar somente um token no formato Bearer.
+        // Aceitar somente tokens no formato Bearer.
         if (
             typeof cabecalho !== 'string' ||
             !/^Bearer\s+\S+$/i.test(cabecalho)
@@ -33,16 +33,21 @@ export async function autenticarToken(req, res, next) {
             );
         }
 
-        const token = cabecalho.replace(/^Bearer\s+/i, '');
+        const token = cabecalho.replace(
+            /^Bearer\s+/i,
+            ''
+        );
 
-        // Impedir funcionamento sem uma chave JWT configurada.
+        // Exigir uma chave JWT configurada.
         const chaveJWT = process.env.JWT_SECRET;
 
         if (
             typeof chaveJWT !== 'string' ||
             chaveJWT.trim().length === 0
         ) {
-            console.error('JWT_SECRET não configurado.');
+            console.error(
+                'JWT_SECRET não configurado.'
+            );
 
             return responderErro(
                 res,
@@ -51,19 +56,23 @@ export async function autenticarToken(req, res, next) {
             );
         }
 
-        // Aceitar somente JWT assinado com HS256.
-        // A assinatura e a expiração são verificadas pela biblioteca.
-        const dadosToken = jwt.verify(token, chaveJWT, {
-            algorithms: ['HS256']
-        });
+        // Verificar assinatura e expiração.
+        // Aceitar somente o algoritmo HS256.
+        const dadosToken = jwt.verify(
+            token,
+            chaveJWT,
+            {
+                algorithms: ['HS256']
+            }
+        );
 
-        // O identificador precisa estar no campo "sub".
+        // Validar o identificador do usuário no token.
         if (
             !dadosToken ||
             typeof dadosToken !== 'object' ||
             Array.isArray(dadosToken) ||
             typeof dadosToken.sub !== 'string' ||
-            dadosToken.sub.trim().length === 0
+            !dadosToken.sub.trim()
         ) {
             return responderErro(
                 res,
@@ -72,8 +81,22 @@ export async function autenticarToken(req, res, next) {
             );
         }
 
-        // Consultar o estado atual do usuário no banco.
-        // Não confiar no perfil informado dentro do token.
+        // ==========================================
+        // CONSULTA INICIAL DE AUTENTICAÇÃO
+        // ==========================================
+        //
+        // Esta consulta verifica o estado atual do
+        // usuário e da empresa antes de liberar a rota.
+        //
+        // Não utiliza executarComContextoRLS porque
+        // o contexto confiável ainda está sendo
+        // estabelecido.
+        //
+        // Antes de ativar políticas RLS com um usuário
+        // PostgreSQL sem BYPASSRLS, será necessário
+        // definir um acesso inicial seguro para
+        // esta consulta.
+
         const usuario = await prisma.user.findUnique({
             where: {
                 id: dadosToken.sub
@@ -95,7 +118,11 @@ export async function autenticarToken(req, res, next) {
             }
         });
 
-        if (!usuario || usuario.status !== 'ACTIVE') {
+        // Verificar se o usuário existe e está ativo.
+        if (
+            !usuario ||
+            usuario.status !== 'ACTIVE'
+        ) {
             return responderErro(
                 res,
                 401,
@@ -103,6 +130,7 @@ export async function autenticarToken(req, res, next) {
             );
         }
 
+        // Verificar se a empresa existe e está ativa.
         if (
             !usuario.company ||
             usuario.company.status !== 'ACTIVE' ||
@@ -115,8 +143,16 @@ export async function autenticarToken(req, res, next) {
             );
         }
 
-        // Os dados utilizados nas permissões vêm do banco,
-        // e não de informações fornecidas pelo cliente.
+        // ==========================================
+        // CONTEXTO DO USUÁRIO AUTENTICADO
+        // ==========================================
+        //
+        // Utilizar exclusivamente os dados atuais
+        // do banco para definir as permissões.
+        //
+        // Não confiar em companyId ou role enviados
+        // pelo cliente ou presentes no JWT.
+
         req.user = {
             id: usuario.id,
             name: usuario.name,
@@ -129,6 +165,8 @@ export async function autenticarToken(req, res, next) {
         return next();
 
     } catch (error) {
+        // Tokens inválidos, expirados ou ainda
+        // não válidos devem retornar HTTP 401.
         if (
             error instanceof jwt.JsonWebTokenError ||
             error instanceof jwt.TokenExpiredError ||
@@ -141,7 +179,10 @@ export async function autenticarToken(req, res, next) {
             );
         }
 
-        console.error('Erro interno na autenticação:', error);
+        console.error(
+            'Erro interno na autenticação:',
+            error
+        );
 
         return responderErro(
             res,
@@ -156,6 +197,7 @@ export async function autenticarToken(req, res, next) {
 // ==========================================
 
 export function exigirTI(req, res, next) {
+    // Verificar se existe um usuário autenticado.
     if (!req.user) {
         return responderErro(
             res,
@@ -164,6 +206,7 @@ export function exigirTI(req, res, next) {
         );
     }
 
+    // Permitir acesso somente a administradores de TI.
     if (req.user.role !== 'IT_ADMIN') {
         return responderErro(
             res,

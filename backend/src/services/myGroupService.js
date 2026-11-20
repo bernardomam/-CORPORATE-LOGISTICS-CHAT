@@ -1,16 +1,28 @@
 
-import { prisma } from '../config/prisma.js';
+import { executarComContextoRLS } from '../config/rlsContext.js';
 
-// Criar erro com código HTTP
+// ==========================================
+// TRATAMENTO DE ERROS
+// ==========================================
+
 function criarErro(mensagem, status = 400) {
     const error = new Error(mensagem);
     error.status = status;
     return error;
 }
 
-// Validar identificação do usuário
+// ==========================================
+// VALIDAR USUÁRIO
+// ==========================================
+
 function validarUsuario(usuario) {
-    if (!usuario?.id || !usuario?.companyId) {
+    if (
+        !usuario ||
+        typeof usuario.id !== 'string' ||
+        !usuario.id.trim() ||
+        typeof usuario.companyId !== 'string' ||
+        !usuario.companyId.trim()
+    ) {
         throw criarErro(
             'Usuário não identificado ou empresa não informada.',
             401
@@ -18,45 +30,51 @@ function validarUsuario(usuario) {
     }
 }
 
-// Listar somente grupos ativos dos quais o usuário participa
+// ==========================================
+// LISTAR MEUS GRUPOS
+// ==========================================
+
 export async function listarMeusGrupos(usuario) {
     validarUsuario(usuario);
 
-    return await prisma.group.findMany({
-        where: {
-            companyId: usuario.companyId,
-            status: 'ACTIVE',
-            members: {
-                some: {
-                    userId: usuario.id,
-                    leftAt: null
-                }
-            }
-        },
-        select: {
-            id: true,
-            name: true,
-            status: true,
-            createdAt: true,
-            members: {
-                where: {
-                    leftAt: null,
-                    user: {
-                        status: 'ACTIVE'
+    return executarComContextoRLS(
+        usuario,
+        (tx) => tx.group.findMany({
+            where: {
+                companyId: usuario.companyId,
+                status: 'ACTIVE',
+                members: {
+                    some: {
+                        userId: usuario.id,
+                        leftAt: null
                     }
-                },
-                select: {
-                    user: {
-                        select: {
-                            id: true,
-                            name: true
+                }
+            },
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                createdAt: true,
+                members: {
+                    where: {
+                        leftAt: null,
+                        user: {
+                            status: 'ACTIVE'
+                        }
+                    },
+                    select: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
                         }
                     }
                 }
+            },
+            orderBy: {
+                name: 'asc'
             }
-        },
-        orderBy: {
-            name: 'asc'
-        }
-    });
+        })
+    );
 }

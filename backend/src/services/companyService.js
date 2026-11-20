@@ -1,92 +1,83 @@
+import { executarComContextoRLS } from '../config/rlsContext.js';
 
-import { prisma } from '../config/prisma.js';
+function validarEmpresa(usuario) {
+    if (!usuario?.companyId) {
+        const error = new Error('Empresa do usuÃƒÂ¡rio nÃƒÂ£o identificada.');
+        error.status = 401;
+        throw error;
+    }
+}
 
-// Listar somente a empresa do usuário autenticado.
+const camposEmpresa = {
+    id: true,
+    name: true,
+    status: true,
+    createdAt: true,
+    updatedAt: true
+};
+
+// Listar somente a empresa do usuÃƒÂ¡rio autenticado.
 export async function listCompanies(usuario) {
-    if (!usuario?.companyId) {
-        const error = new Error('Empresa do usuário não identificada.');
-        error.status = 401;
-        throw error;
-    }
+    validarEmpresa(usuario);
 
-    return await prisma.company.findMany({
-        where: {
-            id: usuario.companyId
-        },
-        select: {
-            id: true,
-            name: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true
-        }
+    return executarComContextoRLS(usuario, async (tx) => {
+        return tx.company.findMany({
+            where: {
+                id: usuario.companyId
+            },
+            select: camposEmpresa
+        });
     });
 }
 
-// Buscar somente a própria empresa.
+// Buscar somente a prÃƒÂ³pria empresa.
 export async function getCompanyById(usuario, id) {
-    if (!usuario?.companyId) {
-        const error = new Error('Empresa do usuário não identificada.');
-        error.status = 401;
-        throw error;
-    }
+    validarEmpresa(usuario);
 
     if (id !== usuario.companyId) {
         return null;
     }
 
-    return await prisma.company.findFirst({
-        where: {
-            id: usuario.companyId
-        },
-        select: {
-            id: true,
-            name: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true
-        }
+    return executarComContextoRLS(usuario, async (tx) => {
+        return tx.company.findFirst({
+            where: {
+                id: usuario.companyId
+            },
+            select: camposEmpresa
+        });
     });
 }
 
-// Atualizar somente a própria empresa.
+// Atualizar somente a prÃƒÂ³pria empresa.
 export async function updateCompany(usuario, id, name) {
-    if (!usuario?.companyId) {
-        const error = new Error('Empresa do usuário não identificada.');
-        error.status = 401;
-        throw error;
-    }
+    validarEmpresa(usuario);
 
     if (id !== usuario.companyId) {
         return null;
     }
 
-    const empresa = await prisma.company.findFirst({
-        where: {
-            id: usuario.companyId
-        },
-        select: {
-            id: true
-        }
-    });
+    return executarComContextoRLS(usuario, async (tx) => {
+        const empresa = await tx.company.findFirst({
+            where: {
+                id: usuario.companyId
+            },
+            select: {
+                id: true
+            }
+        });
 
-    if (!empresa) {
-        return null;
-    }
-
-    return await prisma.company.update({
-        where: {
-            id: usuario.companyId
-        },
-        data: {
-            name: name.trim()
-        },
-        select: {
-            id: true,
-            name: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true
+        if (!empresa) {
+            return null;
         }
+
+        return tx.company.update({
+            where: {
+                id: usuario.companyId
+            },
+            data: {
+                name: name.trim()
+            },
+            select: camposEmpresa
+        });
     });
 }
