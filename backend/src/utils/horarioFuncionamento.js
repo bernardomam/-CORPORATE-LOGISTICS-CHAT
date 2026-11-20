@@ -30,7 +30,7 @@ export function verificarAcessoHorario(req, res, next) {
         sucesso: false,
         codigo: 'FORA_DO_HORARIO',
         mensagem:
-            'O CalZup funciona somente das 08:00 às 18:00, no horário de Brasília.',
+            'O Callzup funciona somente das 08:00 às 18:00, no horário de Brasília.',
         horarioInicio: '08:00',
         horarioFim: '18:00',
         fusoHorario: FUSO_HORARIO
