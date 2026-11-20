@@ -4,10 +4,6 @@ import express from 'express';
 
 import { prisma } from './config/prisma.js';
 
-// ==========================================
-// IMPORTAÇÃO DAS ROTAS
-// ==========================================
-
 import companyRoutes from './routes/companyRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
@@ -19,77 +15,85 @@ import privateChatRoutes from './routes/privateChatRoutes.js';
 
 import { errorMiddleware } from './middlewares/errorMiddleware.js';
 
-// ==========================================
-// CONFIGURAÇÃO DO EXPRESS
-// ==========================================
-
 const app = express();
 
 const PORT = Number(process.env.PORT) || 3001;
+const FUSO_HORARIO = 'America/Sao_Paulo';
 
-app.disable('x-powered-by');
-
-app.set('trust proxy', false);
-
- 
-// CORS: permite somente origens conhecidas do frontend.
-// FRONTEND_URL aceita URLs separadas por vírgula para ambientes de Preview.
+// Origens autorizadas, separadas por vírgula na variável FRONTEND_URL.
+// Exemplo:
+// FRONTEND_URL=https://meu-frontend.vercel.app,http://localhost:5173
 const origensConfiguradas = (process.env.FRONTEND_URL || '')
     .split(',')
     .map((origem) => origem.trim().replace(/\/$/, ''))
     .filter(Boolean);
 
-const origensPermitidas = new Set([
+const ORIGENS_PERMITIDAS = new Set([
     'https://corporate-logistics-chat-w67h.vercel.app',
     ...origensConfiguradas
 ]);
 
 if (process.env.NODE_ENV !== 'production') {
-    origensPermitidas.add('http://localhost:3000');
-    origensPermitidas.add('http://localhost:5173');
+    ORIGENS_PERMITIDAS.add('http://localhost:5173');
+    ORIGENS_PERMITIDAS.add('http://localhost:3000');
 }
+
+app.disable('x-powered-by');
+
+// ================================
+// CORS
+// ================================
 
 app.use((req, res, next) => {
     const origem = req.headers.origin;
+
     res.setHeader('Vary', 'Origin');
 
-    if (origem && origensPermitidas.has(origem)) {
+    if (origem && ORIGENS_PERMITIDAS.has(origem)) {
         res.setHeader('Access-Control-Allow-Origin', origem);
     }
 
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader(
+        'Access-Control-Allow-Methods',
+        'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+    );
+
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization'
+    );
+
     res.setHeader('Access-Control-Max-Age', '86400');
 
     if (req.method === 'OPTIONS') {
-        if (origem && !origensPermitidas.has(origem)) {
+        if (origem && !ORIGENS_PERMITIDAS.has(origem)) {
             return res.status(403).json({
                 sucesso: false,
                 mensagem: 'Origem não autorizada.'
             });
         }
+
         return res.status(204).end();
     }
 
     next();
 });
 
-// ==========================================
+// ================================
 // CABEÇALHOS DE SEGURANÇA
-// ==========================================
+// ================================
 
 app.use((req, res, next) => {
-    res.set('X-Content-Type-Options', 'nosniff');
-    res.set('X-Frame-Options', 'DENY');
-    res.set('Referrer-Policy', 'no-referrer');
-    res.set('X-DNS-Prefetch-Control', 'off');
-
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-DNS-Prefetch-Control', 'off');
     next();
 });
 
-// ==========================================
-// LIMITES DAS REQUISIÇÕES
-// ==========================================
+// ================================
+// PROCESSAMENTO DE REQUISIÇÕES
+// ================================
 
 app.use(express.json({
     limit: '100kb',
@@ -102,29 +106,44 @@ app.use(express.urlencoded({
     parameterLimit: 100
 }));
 
-// ==========================================
-// CONTROLE DE CACHE
-// ==========================================
-
 app.use('/api', (req, res, next) => {
-    res.set('Cache-Control', 'no-store');
+    res.setHeader('Cache-Control', 'no-store');
     next();
 });
 
-// ==========================================
+// ================================
+// HORÁRIO DE BRASÍLIA
+// ================================
+
+function obterHorarioBrasilia(data = new Date()) {
+    return new Intl.DateTimeFormat('pt-BR', {
+        timeZone: FUSO_HORARIO,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).format(data);
+}
+
+// ================================
 // ROTA PRINCIPAL
-// ==========================================
+// ================================
 
 app.get('/', (req, res) => {
     return res.status(200).json({
         sucesso: true,
-        mensagem: 'API do CallZup funcionando'
+        mensagem: 'API do Callzup funcionando',
+        horarioServidor: obterHorarioBrasilia(),
+        fusoHorario: FUSO_HORARIO
     });
 });
 
-// ==========================================
-// VERIFICAÇÃO DO SERVIDOR E BANCO
-// ==========================================
+// ================================
+// STATUS DA API E SUPABASE
+// ================================
 
 app.get('/api/status', async (req, res) => {
     try {
@@ -132,79 +151,79 @@ app.get('/api/status', async (req, res) => {
 
         return res.status(200).json({
             sucesso: true,
-            mensagem: 'Serviço disponível'
+            mensagem: 'Serviço disponível',
+            bancoDeDados: 'Conectado',
+            horarioServidor: obterHorarioBrasilia(),
+            fusoHorario: FUSO_HORARIO
         });
     } catch (error) {
         console.error(
-            'Falha na verificação de saúde da API:',
+            'Erro ao verificar conexão com o banco:',
             error
         );
 
         return res.status(503).json({
             sucesso: false,
-            mensagem: 'Serviço temporariamente indisponível'
+            mensagem: 'Serviço temporariamente indisponível',
+            bancoDeDados: 'Desconectado',
+            horarioServidor: obterHorarioBrasilia(),
+            fusoHorario: FUSO_HORARIO
         });
     }
 });
 
-// ==========================================
-// ROTAS DA API
-// ==========================================
+// ================================
+// ROTAS
+// ================================
 
 app.use('/api/companies', companyRoutes);
-
 app.use('/api/auth', authRoutes);
-
 app.use('/api/users', userRoutes);
-
 app.use('/api/groups', groupRoutes);
-
 app.use('/api/my-groups', myGroupRoutes);
-
 app.use('/api/group-messages', groupMessageRoutes);
-
 app.use('/api/chat-requests', chatRequestRoutes);
-
 app.use('/api/private-chats', privateChatRoutes);
 
-// ==========================================
+// ================================
 // ROTA NÃO ENCONTRADA
-// ==========================================
+// ================================
 
 app.use((req, res) => {
     return res.status(404).json({
         sucesso: false,
-        mensagem: 'Rota não encontrada.'
+        mensagem: 'Rota não encontrada.',
+        caminho: req.originalUrl
     });
 });
 
-// ==========================================
+// ================================
 // TRATAMENTO GLOBAL DE ERROS
-// ==========================================
+// ================================
 
 app.use(errorMiddleware);
 
-// ==========================================
-// EXPORTAÇÃO PARA O VERCEL
-// ==========================================
+// ================================
+// EXPORTAÇÃO PARA A VERCEL
+// ================================
 
 export default app;
 
-// ==========================================
+// ================================
 // INICIALIZAÇÃO LOCAL
-// ==========================================
+// ================================
 
 if (process.env.VERCEL !== '1') {
     const server = app.listen(PORT, () => {
         console.log('================================');
         console.log('CALLZUP - BACKEND');
-        console.log('================================');
-        console.log(`Servidor rodando na porta ${PORT}`);
-        console.log(`Endereço local: http://localhost:${PORT}`);
+        console.log(`Porta: ${PORT}`);
+        console.log(`URL: http://localhost:${PORT}`);
+        console.log(`Horário: ${obterHorarioBrasilia()}`);
         console.log('================================');
     });
 
     server.on('error', (error) => {
-        console.error('Erro ao iniciar servidor:', error);
+        console.error('Erro ao iniciar o servidor:', error);
     });
 }

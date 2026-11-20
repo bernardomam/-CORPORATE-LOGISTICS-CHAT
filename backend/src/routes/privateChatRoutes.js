@@ -13,19 +13,34 @@ import {
     autenticarToken
 } from '../middlewares/authMiddleware.js';
 
+import {
+    verificarHorarioMensagens
+} from '../middlewares/horarioMensagens.js';
+
 const router = express.Router();
 
 router.use(autenticarToken);
 
+// Listar conversas privadas.
 router.get('/', listarConversas);
-router.get('/:id/messages', listarMensagens);
-router.post('/:id/messages', enviarMensagem);
 
+// Consultar mensagens.
+router.get('/:id/messages', listarMensagens);
+
+// Enviar mensagem ou resposta no expediente.
+router.post(
+    '/:id/messages',
+    verificarHorarioMensagens,
+    enviarMensagem
+);
+
+// Adicionar ou atualizar reação.
 router.post(
     '/:id/messages/:mensagemId/reactions',
     reagirMensagem
 );
 
+// Remover reação.
 router.delete(
     '/:id/messages/:mensagemId/reactions',
     removerReacaoMensagem

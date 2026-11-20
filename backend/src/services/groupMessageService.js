@@ -1,41 +1,71 @@
 
-import { prisma } from '../config/prisma.js';
-import { verificarHorarioFuncionamento } from '../utils/horarioFuncionamento.js';
+import { executarComContextoRLS } from '../config/rlsContext.js';
+import {
+    verificarHorarioFuncionamento
+} from '../utils/horarioFuncionamento.js';
 
-// Cria erros com código HTTP.
+// ==========================================
+// TRATAMENTO DE ERROS
+// ==========================================
+
 function criarErro(mensagem, status = 400) {
     const error = new Error(mensagem);
     error.status = status;
     return error;
 }
 
-// Valida a identificação do usuário autenticado.
+// ==========================================
+// VALIDAÇÕES
+// ==========================================
+
 function validarUsuario(usuario) {
-    if (!usuario?.id || !usuario?.companyId) {
-        throw criarErro('Usuário não identificado.', 401);
+    if (
+        !usuario ||
+        typeof usuario.id !== 'string' ||
+        !usuario.id.trim() ||
+        typeof usuario.companyId !== 'string' ||
+        !usuario.companyId.trim()
+    ) {
+        throw criarErro(
+            'Usuário não identificado.',
+            401
+        );
     }
 }
 
-// Verifica o horário de funcionamento do CallZup.
 function validarHorario() {
     if (!verificarHorarioFuncionamento()) {
         throw criarErro(
-            'O CallZup funciona somente das 08h às 18h, no horário de Brasília.',
+            'O envio de mensagens é permitido somente das 08:00 às 18:00, no horário de Brasília.',
             403
         );
     }
 }
 
-// Verifica se o usuário é integrante ativo do grupo.
-async function buscarGrupoDoParticipante(usuario, grupoId) {
+function validarIdentificador(valor, mensagem) {
     if (
-        typeof grupoId !== 'string' ||
-        !grupoId.trim()
+        typeof valor !== 'string' ||
+        !valor.trim()
     ) {
-        throw criarErro('Identificador do grupo inválido.');
+        throw criarErro(mensagem);
     }
+}
 
-    const grupo = await prisma.group.findFirst({
+// ==========================================
+// VERIFICAR ACESSO AO GRUPO
+// ==========================================
+
+async function buscarGrupoDoParticipante(
+    tx,
+    usuario,
+    grupoId
+) {
+    validarIdentificador(
+        grupoId,
+        'Identificador do grupo inválido.'
+    );
+
+    const grupo = await tx.group.findFirst({
         where: {
             id: grupoId.trim(),
             companyId: usuario.companyId,
@@ -64,7 +94,10 @@ async function buscarGrupoDoParticipante(usuario, grupoId) {
     return grupo;
 }
 
-// Dados apresentados junto com cada mensagem.
+// ==========================================
+// DADOS DAS MENSAGENS
+// ==========================================
+
 const incluirDadosMensagem = {
     sender: {
         select: {
@@ -102,20 +135,22 @@ const incluirDadosMensagem = {
     }
 };
 
-// Confere se a mensagem pertence ao grupo e à empresa.
+// ==========================================
+// BUSCAR MENSAGEM DO GRUPO
+// ==========================================
+
 async function buscarMensagemDoGrupo(
+    tx,
     usuario,
     grupoId,
     mensagemId
 ) {
-    if (
-        typeof mensagemId !== 'string' ||
-        !mensagemId.trim()
-    ) {
-        throw criarErro('Identificador da mensagem inválido.');
-    }
+    validarIdentificador(
+        mensagemId,
+        'Identificador da mensagem inválido.'
+    );
 
-    const mensagem = await prisma.message.findFirst({
+    const mensagem = await tx.message.findFirst({
         where: {
             id: mensagemId.trim(),
             groupId: grupoId,
@@ -138,29 +173,44 @@ async function buscarMensagemDoGrupo(
     return mensagem;
 }
 
-// Consultar histórico de mensagens do grupo.
-export async function listarMensagensGrupo(usuario, grupoId) {
+// ==========================================
+// LISTAR MENSAGENS DO GRUPO
+// ==========================================
+
+export async function listarMensagensGrupo(
+    usuario,
+    grupoId
+) {
     validarUsuario(usuario);
-    validarHorario();
 
-    const grupo = await buscarGrupoDoParticipante(
+    return executarComContextoRLS(
         usuario,
-        grupoId
-    );
+        async (tx) => {
+            const grupo =
+                await buscarGrupoDoParticipante(
+                    tx,
+                    usuario,
+                    grupoId
+                );
 
-    return prisma.message.findMany({
-        where: {
-            groupId: grupo.id,
-            companyId: usuario.companyId
-        },
-        include: incluirDadosMensagem,
-        orderBy: {
-            createdAt: 'asc'
+            return tx.message.findMany({
+                where: {
+                    groupId: grupo.id,
+                    companyId: usuario.companyId
+                },
+                include: incluirDadosMensagem,
+                orderBy: {
+                    createdAt: 'asc'
+                }
+            });
         }
-    });
+    );
 }
 
-// Enviar mensagem ou responder a outra mensagem.
+// ==========================================
+// ENVIAR MENSAGEM AO GRUPO
+// ==========================================
+
 export async function enviarMensagemGrupo(
     usuario,
     grupoId,
@@ -174,7 +224,9 @@ export async function enviarMensagemGrupo(
         typeof content !== 'string' ||
         !content.trim()
     ) {
-        throw criarErro('A mensagem não pode estar vazia.');
+        throw criarErro(
+            'A mensagem não pode estar vazia.'
+        );
     }
 
     const conteudo = content.trim();
@@ -185,48 +237,65 @@ export async function enviarMensagemGrupo(
         );
     }
 
-    const grupo = await buscarGrupoDoParticipante(
+    return executarComContextoRLS(
         usuario,
-        grupoId
-    );
+        async (tx) => {
+            const grupo =
+                await buscarGrupoDoParticipante(
+                    tx,
+                    usuario,
+                    grupoId
+                );
 
-    let mensagemRespondidaId = null;
+            let mensagemRespondidaId = null;
 
-    if (replyToId !== null && replyToId !== undefined) {
-        if (
-            typeof replyToId !== 'string' ||
-            !replyToId.trim()
-        ) {
-            throw criarErro(
-                'Identificador da mensagem respondida inválido.'
-            );
+            if (
+                replyToId !== null &&
+                replyToId !== undefined
+            ) {
+                validarIdentificador(
+                    replyToId,
+                    'Identificador da mensagem respondida inválido.'
+                );
+
+                const mensagemOriginal =
+                    await buscarMensagemDoGrupo(
+                        tx,
+                        usuario,
+                        grupo.id,
+                        replyToId
+                    );
+
+                mensagemRespondidaId =
+                    mensagemOriginal.id;
+            }
+
+            // Revalidar o horário antes da gravação.
+            validarHorario();
+
+            return tx.message.create({
+                data: {
+                    content: conteudo,
+                    type: 'TEXT',
+                    companyId: usuario.companyId,
+                    userId: usuario.id,
+                    groupId: grupo.id,
+                    ...(mensagemRespondidaId
+                        ? {
+                            replyToId: mensagemRespondidaId
+                        }
+                        : {})
+                },
+                include: incluirDadosMensagem
+            });
         }
-
-        const mensagemOriginal = await buscarMensagemDoGrupo(
-            usuario,
-            grupo.id,
-            replyToId
-        );
-
-        mensagemRespondidaId = mensagemOriginal.id;
-    }
-
-    return prisma.message.create({
-        data: {
-            content: conteudo,
-            type: 'TEXT',
-            companyId: usuario.companyId,
-            userId: usuario.id,
-            groupId: grupo.id,
-            ...(mensagemRespondidaId
-                ? { replyToId: mensagemRespondidaId }
-                : {})
-        },
-        include: incluirDadosMensagem
-    });
+    );
 }
 
-// Adicionar ou atualizar a reação do usuário.
+// ==========================================
+// REAGIR A UMA MENSAGEM DO GRUPO
+// ==========================================
+
 export async function reagirMensagemGrupo(
     usuario,
     grupoId,
@@ -234,90 +303,113 @@ export async function reagirMensagemGrupo(
     emoji
 ) {
     validarUsuario(usuario);
-    validarHorario();
 
     if (
         typeof emoji !== 'string' ||
         !emoji.trim() ||
         emoji.trim().length > 32
     ) {
-        throw criarErro('Informe uma reação válida.');
+        throw criarErro(
+            'Informe uma reação válida.'
+        );
     }
 
-    const grupo = await buscarGrupoDoParticipante(
+    return executarComContextoRLS(
         usuario,
-        grupoId
-    );
+        async (tx) => {
+            const grupo =
+                await buscarGrupoDoParticipante(
+                    tx,
+                    usuario,
+                    grupoId
+                );
 
-    const mensagem = await buscarMensagemDoGrupo(
-        usuario,
-        grupo.id,
-        mensagemId
-    );
+            const mensagem =
+                await buscarMensagemDoGrupo(
+                    tx,
+                    usuario,
+                    grupo.id,
+                    mensagemId
+                );
 
-    return prisma.messageReaction.upsert({
-        where: {
-            messageId_userId: {
-                messageId: mensagem.id,
-                userId: usuario.id
-            }
-        },
-        update: {
-            emoji: emoji.trim()
-        },
-        create: {
-            messageId: mensagem.id,
-            userId: usuario.id,
-            emoji: emoji.trim()
-        },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true,
-                    role: true
+            return tx.messageReaction.upsert({
+                where: {
+                    messageId_userId: {
+                        messageId: mensagem.id,
+                        userId: usuario.id
+                    }
+                },
+                update: {
+                    emoji: emoji.trim()
+                },
+                create: {
+                    messageId: mensagem.id,
+                    userId: usuario.id,
+                    emoji: emoji.trim()
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            role: true
+                        }
+                    }
                 }
-            }
+            });
         }
-    });
+    );
 }
 
-// Remover somente a própria reação.
+// ==========================================
+// REMOVER REAÇÃO DE MENSAGEM DO GRUPO
+// ==========================================
+
 export async function removerReacaoMensagemGrupo(
     usuario,
     grupoId,
     mensagemId
 ) {
     validarUsuario(usuario);
-    validarHorario();
 
-    const grupo = await buscarGrupoDoParticipante(
+    return executarComContextoRLS(
         usuario,
-        grupoId
-    );
+        async (tx) => {
+            const grupo =
+                await buscarGrupoDoParticipante(
+                    tx,
+                    usuario,
+                    grupoId
+                );
 
-    const mensagem = await buscarMensagemDoGrupo(
-        usuario,
-        grupo.id,
-        mensagemId
-    );
+            const mensagem =
+                await buscarMensagemDoGrupo(
+                    tx,
+                    usuario,
+                    grupo.id,
+                    mensagemId
+                );
 
-    const resultado = await prisma.messageReaction.deleteMany({
-        where: {
-            messageId: mensagem.id,
-            userId: usuario.id
+            const resultado =
+                await tx.messageReaction.deleteMany({
+                    where: {
+                        messageId: mensagem.id,
+                        userId: usuario.id
+                    }
+                });
+
+            if (resultado.count === 0) {
+                throw criarErro(
+                    'Você ainda não reagiu a esta mensagem.',
+                    404
+                );
+            }
+
+            return {
+                removida: true,
+                mensagem:
+                    'Reação removida com sucesso.'
+            };
         }
-    });
-
-    if (resultado.count === 0) {
-        throw criarErro(
-            'Você ainda não reagiu a esta mensagem.',
-            404
-        );
-    }
-
-    return {
-        removida: true,
-        mensagem: 'Reação removida com sucesso.'
-    };
+    );
 }

@@ -1,5 +1,5 @@
 
-import { prisma } from '../config/prisma.js';
+import { executarComContextoRLS } from '../config/rlsContext.js';
 
 // ==========================================
 // TRATAMENTO DE ERROS
@@ -18,6 +18,8 @@ function criarErro(mensagem, status = 400) {
 function validarAdministrador(usuario) {
     if (
         !usuario ||
+        typeof usuario.id !== 'string' ||
+        !usuario.id.trim() ||
         typeof usuario.companyId !== 'string' ||
         !usuario.companyId.trim()
     ) {
@@ -106,7 +108,7 @@ const integrantesAtivos = {
 // BUSCAR GRUPO DA EMPRESA
 // ==========================================
 
-async function buscarGrupo(usuario, id) {
+async function buscarGrupo(tx, usuario, id) {
     validarAdministrador(usuario);
 
     const grupoId = validarId(
@@ -114,7 +116,7 @@ async function buscarGrupo(usuario, id) {
         'Identificador do grupo inválido.'
     );
 
-    const grupo = await prisma.group.findFirst({
+    const grupo = await tx.group.findFirst({
         where: {
             id: grupoId,
             companyId: usuario.companyId
@@ -135,8 +137,8 @@ async function buscarGrupo(usuario, id) {
 // BUSCAR GRUPO ATIVO
 // ==========================================
 
-async function buscarGrupoAtivo(usuario, id) {
-    const grupo = await buscarGrupo(usuario, id);
+async function buscarGrupoAtivo(tx, usuario, id) {
+    const grupo = await buscarGrupo(tx, usuario, id);
 
     if (grupo.status !== 'ACTIVE') {
         throw criarErro(
@@ -152,7 +154,7 @@ async function buscarGrupoAtivo(usuario, id) {
 // BUSCAR GRUPO COM INTEGRANTES
 // ==========================================
 
-async function buscarGrupoComIntegrantes(usuario, id) {
+async function buscarGrupoComIntegrantes(tx, usuario, id) {
     validarAdministrador(usuario);
 
     const grupoId = validarId(
@@ -160,7 +162,7 @@ async function buscarGrupoComIntegrantes(usuario, id) {
         'Identificador do grupo inválido.'
     );
 
-    return prisma.group.findFirst({
+    return tx.group.findFirst({
         where: {
             id: grupoId,
             companyId: usuario.companyId
@@ -175,15 +177,11 @@ async function buscarGrupoComIntegrantes(usuario, id) {
 // CRIAR GRUPO
 // ==========================================
 
-export async function criarGrupo(
-    usuario,
-    dados = {}
-) {
+async function criarGrupoInterno(tx, usuario, dados = {}) {
     validarAdministrador(usuario);
     validarDados(dados);
 
     const { name, memberIds = [] } = dados;
-
     const nome = validarNome(name);
 
     if (!Array.isArray(memberIds)) {
@@ -192,7 +190,6 @@ export async function criarGrupo(
         );
     }
 
-    // Impedir listas excessivamente grandes.
     if (memberIds.length > 500) {
         throw criarErro(
             'A lista de participantes excede o limite permitido.'
@@ -210,10 +207,8 @@ export async function criarGrupo(
         )
     ];
 
-    // Verificar se todos os participantes estão ativos
-    // e pertencem à empresa.
     if (participantes.length > 0) {
-        const usuariosValidos = await prisma.user.findMany({
+        const usuariosValidos = await tx.user.findMany({
             where: {
                 id: {
                     in: participantes
@@ -234,7 +229,7 @@ export async function criarGrupo(
     }
 
     try {
-        return await prisma.group.create({
+        return await tx.group.create({
             data: {
                 name: nome,
                 companyId: usuario.companyId,
@@ -253,7 +248,6 @@ export async function criarGrupo(
                 members: integrantesAtivos
             }
         });
-
     } catch (error) {
         if (error?.code === 'P2002') {
             throw criarErro(
@@ -270,10 +264,10 @@ export async function criarGrupo(
 // LISTAR GRUPOS
 // ==========================================
 
-export async function listarGrupos(usuario) {
+async function listarGruposInterno(tx, usuario) {
     validarAdministrador(usuario);
 
-    return prisma.group.findMany({
+    return tx.group.findMany({
         where: {
             companyId: usuario.companyId
         },
@@ -290,7 +284,8 @@ export async function listarGrupos(usuario) {
 // ATUALIZAR GRUPO
 // ==========================================
 
-export async function atualizarGrupo(
+async function atualizarGrupoInterno(
+    tx,
     usuario,
     id,
     dados = {}
@@ -298,11 +293,11 @@ export async function atualizarGrupo(
     validarAdministrador(usuario);
     validarDados(dados);
 
-    const grupo = await buscarGrupoAtivo(usuario, id);
+    const grupo = await buscarGrupoAtivo(tx, usuario, id);
     const nome = validarNome(dados.name);
 
     try {
-        const resultado = await prisma.group.updateMany({
+        const resultado = await tx.group.updateMany({
             where: {
                 id: grupo.id,
                 companyId: usuario.companyId,
@@ -321,10 +316,10 @@ export async function atualizarGrupo(
         }
 
         return buscarGrupoComIntegrantes(
+            tx,
             usuario,
             grupo.id
         );
-
     } catch (error) {
         if (error?.code === 'P2002') {
             throw criarErro(
@@ -341,7 +336,8 @@ export async function atualizarGrupo(
 // ADICIONAR INTEGRANTE
 // ==========================================
 
-export async function adicionarIntegrante(
+async function adicionarIntegranteInterno(
+    tx,
     usuario,
     grupoId,
     userId
@@ -349,6 +345,7 @@ export async function adicionarIntegrante(
     validarAdministrador(usuario);
 
     const grupo = await buscarGrupoAtivo(
+        tx,
         usuario,
         grupoId
     );
@@ -358,7 +355,7 @@ export async function adicionarIntegrante(
         'O identificador do usuário é obrigatório.'
     );
 
-    const participante = await prisma.user.findFirst({
+    const participante = await tx.user.findFirst({
         where: {
             id: participanteId,
             companyId: usuario.companyId,
@@ -377,7 +374,7 @@ export async function adicionarIntegrante(
     }
 
     const participacaoAtiva =
-        await prisma.groupMember.findFirst({
+        await tx.groupMember.findFirst({
             where: {
                 groupId: grupo.id,
                 userId: participante.id,
@@ -396,7 +393,7 @@ export async function adicionarIntegrante(
     }
 
     try {
-        await prisma.groupMember.create({
+        await tx.groupMember.create({
             data: {
                 groupId: grupo.id,
                 userId: participante.id
@@ -404,10 +401,10 @@ export async function adicionarIntegrante(
         });
 
         return buscarGrupoComIntegrantes(
+            tx,
             usuario,
             grupo.id
         );
-
     } catch (error) {
         if (error?.code === 'P2002') {
             throw criarErro(
@@ -424,7 +421,8 @@ export async function adicionarIntegrante(
 // REMOVER INTEGRANTE
 // ==========================================
 
-export async function removerIntegrante(
+async function removerIntegranteInterno(
+    tx,
     usuario,
     grupoId,
     userId
@@ -432,6 +430,7 @@ export async function removerIntegrante(
     validarAdministrador(usuario);
 
     const grupo = await buscarGrupoAtivo(
+        tx,
         usuario,
         grupoId
     );
@@ -443,9 +442,7 @@ export async function removerIntegrante(
 
     const agora = new Date();
 
-    // Atualizar somente participações ainda ativas.
-    // Não apagar registros nem mensagens anteriores.
-    const resultado = await prisma.groupMember.updateMany({
+    const resultado = await tx.groupMember.updateMany({
         where: {
             groupId: grupo.id,
             userId: participanteId,
@@ -474,12 +471,12 @@ export async function removerIntegrante(
 // DESATIVAR GRUPO
 // ==========================================
 
-export async function desativarGrupo(usuario, id) {
+async function desativarGrupoInterno(tx, usuario, id) {
     validarAdministrador(usuario);
 
-    const grupo = await buscarGrupoAtivo(usuario, id);
+    const grupo = await buscarGrupoAtivo(tx, usuario, id);
 
-    const resultado = await prisma.group.updateMany({
+    const resultado = await tx.group.updateMany({
         where: {
             id: grupo.id,
             companyId: usuario.companyId,
@@ -497,7 +494,7 @@ export async function desativarGrupo(usuario, id) {
         );
     }
 
-    return prisma.group.findFirst({
+    return tx.group.findFirst({
         where: {
             id: grupo.id,
             companyId: usuario.companyId
@@ -510,4 +507,62 @@ export async function desativarGrupo(usuario, id) {
             createdAt: true
         }
     });
+}
+
+// ==========================================
+// FUNÇÕES PÚBLICAS COM CONTEXTO RLS
+// ==========================================
+
+export async function criarGrupo(usuario, dados = {}) {
+    return executarComContextoRLS(usuario, (tx) =>
+        criarGrupoInterno(tx, usuario, dados)
+    );
+}
+
+export async function listarGrupos(usuario) {
+    return executarComContextoRLS(usuario, (tx) =>
+        listarGruposInterno(tx, usuario)
+    );
+}
+
+export async function atualizarGrupo(usuario, id, dados = {}) {
+    return executarComContextoRLS(usuario, (tx) =>
+        atualizarGrupoInterno(tx, usuario, id, dados)
+    );
+}
+
+export async function adicionarIntegrante(
+    usuario,
+    grupoId,
+    userId
+) {
+    return executarComContextoRLS(usuario, (tx) =>
+        adicionarIntegranteInterno(
+            tx,
+            usuario,
+            grupoId,
+            userId
+        )
+    );
+}
+
+export async function removerIntegrante(
+    usuario,
+    grupoId,
+    userId
+) {
+    return executarComContextoRLS(usuario, (tx) =>
+        removerIntegranteInterno(
+            tx,
+            usuario,
+            grupoId,
+            userId
+        )
+    );
+}
+
+export async function desativarGrupo(usuario, id) {
+    return executarComContextoRLS(usuario, (tx) =>
+        desativarGrupoInterno(tx, usuario, id)
+    );
 }

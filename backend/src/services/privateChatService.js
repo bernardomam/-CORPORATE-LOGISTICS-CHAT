@@ -1,6 +1,12 @@
 
-import { prisma } from '../config/prisma.js';
-import { verificarHorarioFuncionamento } from '../utils/horarioFuncionamento.js';
+import { executarComContextoRLS } from '../config/rlsContext.js';
+import {
+    verificarHorarioFuncionamento
+} from '../utils/horarioFuncionamento.js';
+
+// ==========================================
+// TRATAMENTO DE ERROS
+// ==========================================
 
 function criarErro(mensagem, status = 400) {
     const error = new Error(mensagem);
@@ -8,29 +14,47 @@ function criarErro(mensagem, status = 400) {
     return error;
 }
 
+// ==========================================
+// VALIDAÇÕES
+// ==========================================
+
 function validarUsuario(usuario) {
-    if (!usuario?.id || !usuario?.companyId) {
-        throw criarErro('Usuario nao identificado.', 401);
+    if (
+        !usuario ||
+        typeof usuario.id !== 'string' ||
+        !usuario.id.trim() ||
+        typeof usuario.companyId !== 'string' ||
+        !usuario.companyId.trim()
+    ) {
+        throw criarErro(
+            'Usuário não identificado.',
+            401
+        );
     }
 }
 
-// Restringe o acesso ao horario de funcionamento de Brasilia.
 function validarHorario() {
     if (!verificarHorarioFuncionamento()) {
         throw criarErro(
-            'Acesso permitido somente das 08h as 18h, no horario de Brasilia.',
+            'O envio de mensagens é permitido somente das 08:00 às 18:00, no horário de Brasília.',
             403
         );
     }
 }
 
 function validarIdentificador(valor, mensagem) {
-    if (typeof valor !== 'string' || !valor.trim()) {
+    if (
+        typeof valor !== 'string' ||
+        !valor.trim()
+    ) {
         throw criarErro(mensagem);
     }
 }
 
-// Todos os usuarios, inclusive a TI, precisam ser participantes.
+// ==========================================
+// FILTROS DE ACESSO
+// ==========================================
+
 function filtroAcessoConversa(usuario) {
     return {
         members: {
@@ -41,13 +65,21 @@ function filtroAcessoConversa(usuario) {
     };
 }
 
-async function buscarConversaDoParticipante(usuario, conversaId) {
+// ==========================================
+// CONSULTAS INTERNAS
+// ==========================================
+
+async function buscarConversaDoParticipante(
+    tx,
+    usuario,
+    conversaId
+) {
     validarIdentificador(
         conversaId,
-        'Identificador da conversa invalido.'
+        'Identificador da conversa inválido.'
     );
 
-    const conversa = await prisma.privateChat.findFirst({
+    const conversa = await tx.privateChat.findFirst({
         where: {
             id: conversaId.trim(),
             companyId: usuario.companyId,
@@ -63,7 +95,7 @@ async function buscarConversaDoParticipante(usuario, conversaId) {
 
     if (!conversa) {
         throw criarErro(
-            'Conversa nao encontrada ou voce nao tem permissao para acessa-la.',
+            'Conversa não encontrada ou você não tem permissão para acessá-la.',
             403
         );
     }
@@ -71,13 +103,18 @@ async function buscarConversaDoParticipante(usuario, conversaId) {
     return conversa;
 }
 
-async function buscarMensagemDaConversa(usuario, conversaId, mensagemId) {
+async function buscarMensagemDaConversa(
+    tx,
+    usuario,
+    conversaId,
+    mensagemId
+) {
     validarIdentificador(
         mensagemId,
-        'Identificador da mensagem invalido.'
+        'Identificador da mensagem inválido.'
     );
 
-    const mensagem = await prisma.message.findFirst({
+    const mensagem = await tx.message.findFirst({
         where: {
             id: mensagemId.trim(),
             privateChatId: conversaId,
@@ -90,7 +127,7 @@ async function buscarMensagemDaConversa(usuario, conversaId, mensagemId) {
 
     if (!mensagem) {
         throw criarErro(
-            'Mensagem nao encontrada nesta conversa.',
+            'Mensagem não encontrada nesta conversa.',
             404
         );
     }
@@ -129,69 +166,91 @@ function incluirDadosMensagem() {
     };
 }
 
-// Cada usuario visualiza somente conversas das quais participa.
+// ==========================================
+// LISTAR CONVERSAS PRIVADAS
+// ==========================================
+
 export async function listarConversasPrivadas(usuario) {
     validarUsuario(usuario);
-    validarHorario();
 
-    return prisma.privateChat.findMany({
-        where: {
-            companyId: usuario.companyId,
-            status: 'ACTIVE',
-            ...filtroAcessoConversa(usuario)
-        },
-        include: {
-            members: {
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            name: true,
-                            role: true
+    return executarComContextoRLS(
+        usuario,
+        (tx) => tx.privateChat.findMany({
+            where: {
+                companyId: usuario.companyId,
+                status: 'ACTIVE',
+                ...filtroAcessoConversa(usuario)
+            },
+            include: {
+                members: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                role: true
+                            }
                         }
+                    }
+                },
+                messages: {
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
+                    take: 1,
+                    select: {
+                        id: true,
+                        content: true,
+                        type: true,
+                        userId: true,
+                        createdAt: true
                     }
                 }
             },
-            messages: {
-                orderBy: {
-                    createdAt: 'desc'
-                },
-                take: 1,
-                select: {
-                    id: true,
-                    content: true,
-                    type: true,
-                    userId: true,
-                    createdAt: true
-                }
+            orderBy: {
+                updatedAt: 'desc'
             }
-        },
-        orderBy: {
-            updatedAt: 'desc'
-        }
-    });
-}
-
-export async function listarMensagensPrivadas(usuario, conversaId) {
-    validarUsuario(usuario);
-    validarHorario();
-
-    const conversa = await buscarConversaDoParticipante(
-        usuario,
-        conversaId
+        })
     );
-
-    return prisma.message.findMany({
-        where: {
-            privateChatId: conversa.id,
-            companyId: usuario.companyId
-        },
-        include: incluirDadosMensagem(),
-        orderBy: {
-            createdAt: 'asc'
-        }
-    });
 }
+
+// ==========================================
+// LISTAR MENSAGENS PRIVADAS
+// ==========================================
+
+export async function listarMensagensPrivadas(
+    usuario,
+    conversaId
+) {
+    validarUsuario(usuario);
+
+    return executarComContextoRLS(
+        usuario,
+        async (tx) => {
+            const conversa =
+                await buscarConversaDoParticipante(
+                    tx,
+                    usuario,
+                    conversaId
+                );
+
+            return tx.message.findMany({
+                where: {
+                    privateChatId: conversa.id,
+                    companyId: usuario.companyId
+                },
+                include: incluirDadosMensagem(),
+                orderBy: {
+                    createdAt: 'asc'
+                }
+            });
+        }
+    );
+}
+
+// ==========================================
+// ENVIAR MENSAGEM PRIVADA
+// ==========================================
 
 export async function enviarMensagemPrivada(
     usuario,
@@ -202,8 +261,13 @@ export async function enviarMensagemPrivada(
     validarUsuario(usuario);
     validarHorario();
 
-    if (typeof content !== 'string' || !content.trim()) {
-        throw criarErro('A mensagem nao pode estar vazia.');
+    if (
+        typeof content !== 'string' ||
+        !content.trim()
+    ) {
+        throw criarErro(
+            'A mensagem não pode estar vazia.'
+        );
     }
 
     const conteudo = content.trim();
@@ -214,55 +278,76 @@ export async function enviarMensagemPrivada(
         );
     }
 
-    const conversa = await buscarConversaDoParticipante(
+    return executarComContextoRLS(
         usuario,
-        conversaId
-    );
+        async (tx) => {
+            const conversa =
+                await buscarConversaDoParticipante(
+                    tx,
+                    usuario,
+                    conversaId
+                );
 
-    let mensagemRespondidaId = null;
+            let mensagemRespondidaId = null;
 
-    if (replyToId !== null && replyToId !== undefined) {
-        validarIdentificador(
-            replyToId,
-            'Identificador da mensagem respondida invalido.'
-        );
+            if (
+                replyToId !== null &&
+                replyToId !== undefined
+            ) {
+                validarIdentificador(
+                    replyToId,
+                    'Identificador da mensagem respondida inválido.'
+                );
 
-        const mensagemOriginal = await buscarMensagemDaConversa(
-            usuario,
-            conversa.id,
-            replyToId
-        );
+                const mensagemOriginal =
+                    await buscarMensagemDaConversa(
+                        tx,
+                        usuario,
+                        conversa.id,
+                        replyToId
+                    );
 
-        mensagemRespondidaId = mensagemOriginal.id;
-    }
-
-    return prisma.$transaction(async (tx) => {
-        const mensagem = await tx.message.create({
-            data: {
-                content: conteudo,
-                type: 'TEXT',
-                companyId: usuario.companyId,
-                userId: usuario.id,
-                privateChatId: conversa.id,
-                ...(mensagemRespondidaId
-                    ? { replyToId: mensagemRespondidaId }
-                    : {})
-            },
-            include: incluirDadosMensagem()
-        });
-
-        await tx.privateChat.update({
-            where: {
-                id: conversa.id
-            },
-            data: {
-                updatedAt: new Date()
+                mensagemRespondidaId =
+                    mensagemOriginal.id;
             }
-        });
 
-        return mensagem;
-    });
+            // Verificar o horário novamente
+            // antes de gravar a mensagem.
+            validarHorario();
+
+            const mensagem = await tx.message.create({
+                data: {
+                    content: conteudo,
+                    type: 'TEXT',
+                    companyId: usuario.companyId,
+                    userId: usuario.id,
+                    privateChatId: conversa.id,
+                    ...(mensagemRespondidaId
+                        ? {
+                            replyToId: mensagemRespondidaId
+                        }
+                        : {})
+                },
+                include: incluirDadosMensagem()
+            });
+
+            await tx.privateChat.update({
+                where: {
+                    id: conversa.id
+                },
+                data: {
+                    updatedAt: new Date()
+                }
+            });
+
+            return mensagem;
+        }
+    );
 }
+
+// ==========================================
+// REAGIR A MENSAGEM PRIVADA
+// ==========================================
 
 export async function reagirMensagemPrivada(
     usuario,
@@ -271,52 +356,66 @@ export async function reagirMensagemPrivada(
     emoji
 ) {
     validarUsuario(usuario);
-    validarHorario();
 
     if (
         typeof emoji !== 'string' ||
         !emoji.trim() ||
         emoji.trim().length > 32
     ) {
-        throw criarErro('Informe uma reacao valida.');
+        throw criarErro(
+            'Informe uma reação válida.'
+        );
     }
 
-    const conversa = await buscarConversaDoParticipante(
+    return executarComContextoRLS(
         usuario,
-        conversaId
-    );
+        async (tx) => {
+            const conversa =
+                await buscarConversaDoParticipante(
+                    tx,
+                    usuario,
+                    conversaId
+                );
 
-    const mensagem = await buscarMensagemDaConversa(
-        usuario,
-        conversa.id,
-        mensagemId
-    );
+            const mensagem =
+                await buscarMensagemDaConversa(
+                    tx,
+                    usuario,
+                    conversa.id,
+                    mensagemId
+                );
 
-    return prisma.messageReaction.upsert({
-        where: {
-            messageId_userId: {
-                messageId: mensagem.id,
-                userId: usuario.id
-            }
-        },
-        create: {
-            messageId: mensagem.id,
-            userId: usuario.id,
-            emoji: emoji.trim()
-        },
-        update: {
-            emoji: emoji.trim()
-        },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true
+            return tx.messageReaction.upsert({
+                where: {
+                    messageId_userId: {
+                        messageId: mensagem.id,
+                        userId: usuario.id
+                    }
+                },
+                create: {
+                    messageId: mensagem.id,
+                    userId: usuario.id,
+                    emoji: emoji.trim()
+                },
+                update: {
+                    emoji: emoji.trim()
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    }
                 }
-            }
+            });
         }
-    });
+    );
 }
+
+// ==========================================
+// REMOVER REAÇÃO
+// ==========================================
 
 export async function removerReacaoMensagemPrivada(
     usuario,
@@ -324,35 +423,45 @@ export async function removerReacaoMensagemPrivada(
     mensagemId
 ) {
     validarUsuario(usuario);
-    validarHorario();
 
-    const conversa = await buscarConversaDoParticipante(
+    return executarComContextoRLS(
         usuario,
-        conversaId
-    );
+        async (tx) => {
+            const conversa =
+                await buscarConversaDoParticipante(
+                    tx,
+                    usuario,
+                    conversaId
+                );
 
-    const mensagem = await buscarMensagemDaConversa(
-        usuario,
-        conversa.id,
-        mensagemId
-    );
+            const mensagem =
+                await buscarMensagemDaConversa(
+                    tx,
+                    usuario,
+                    conversa.id,
+                    mensagemId
+                );
 
-    const resultado = await prisma.messageReaction.deleteMany({
-        where: {
-            messageId: mensagem.id,
-            userId: usuario.id
+            const resultado =
+                await tx.messageReaction.deleteMany({
+                    where: {
+                        messageId: mensagem.id,
+                        userId: usuario.id
+                    }
+                });
+
+            if (resultado.count === 0) {
+                throw criarErro(
+                    'Você ainda não reagiu a esta mensagem.',
+                    404
+                );
+            }
+
+            return {
+                removida: true,
+                mensagem:
+                    'Reação removida com sucesso.'
+            };
         }
-    });
-
-    if (resultado.count === 0) {
-        throw criarErro(
-            'Voce ainda nao reagiu a esta mensagem.',
-            404
-        );
-    }
-
-    return {
-        removida: true,
-        mensagem: 'Reacao removida com sucesso.'
-    };
+    );
 }
