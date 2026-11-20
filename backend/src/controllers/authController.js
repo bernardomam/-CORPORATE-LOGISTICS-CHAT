@@ -21,13 +21,13 @@ export async function login(req, res) {
             });
         }
 
-        const { email, password } = dados;
+        const { email, senha } = dados;
 
         // A validação das credenciais e a geração
         // do JWT acontecem no serviço de autenticação.
         const resultado = await autenticarUsuario(
             email,
-            password
+            senha
         );
 
         // Evitar armazenamento do token em cache.
