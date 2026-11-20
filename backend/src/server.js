@@ -31,6 +31,49 @@ app.disable('x-powered-by');
 
 app.set('trust proxy', false);
 
+ 
+// CORS: permite somente origens conhecidas do frontend.
+// FRONTEND_URL aceita URLs separadas por vírgula para ambientes de Preview.
+const origensConfiguradas = (process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((origem) => origem.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
+const origensPermitidas = new Set([
+    'https://corporate-logistics-chat-w67h.vercel.app',
+    ...origensConfiguradas
+]);
+
+if (process.env.NODE_ENV !== 'production') {
+    origensPermitidas.add('http://localhost:3000');
+    origensPermitidas.add('http://localhost:5173');
+}
+
+app.use((req, res, next) => {
+    const origem = req.headers.origin;
+    res.setHeader('Vary', 'Origin');
+
+    if (origem && origensPermitidas.has(origem)) {
+        res.setHeader('Access-Control-Allow-Origin', origem);
+    }
+
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '86400');
+
+    if (req.method === 'OPTIONS') {
+        if (origem && !origensPermitidas.has(origem)) {
+            return res.status(403).json({
+                sucesso: false,
+                mensagem: 'Origem não autorizada.'
+            });
+        }
+        return res.status(204).end();
+    }
+
+    next();
+});
+
 // ==========================================
 // CABEÇALHOS DE SEGURANÇA
 // ==========================================
