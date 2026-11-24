@@ -212,6 +212,7 @@ export async function desativar(req, res) {
         });
 
     } catch (error) {
+        if (error?.status === 400) return responderErro(res, 400, error.message);
         const erros = {
             NAO_PODE_DESATIVAR_PROPRIA_CONTA: [
                 400,
