@@ -76,7 +76,7 @@ export async function criarUsuario({
     if (
         nomeNormalizado.length > 150 ||
         emailNormalizado.length > 254 ||
-        password.length > 1024
+        Buffer.byteLength(password, 'utf8') > 72
     ) {
         throw new Error('CAMPOS_OBRIGATORIOS');
     }
