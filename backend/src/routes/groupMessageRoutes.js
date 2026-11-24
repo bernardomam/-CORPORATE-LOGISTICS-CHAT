@@ -21,7 +21,7 @@ router.use(autenticarToken);
 router.get('/:id', listarMensagens);
 
 // Enviar mensagem ou responder a outra mensagem
-router.post('/:id', enviarMensagem);
+router.post('/:id', verificarHorarioMensagens, enviarMensagem);
 
 // Adicionar ou atualizar uma reacao
 router.post('/:id/messages/:mensagemId/reactions', reagirMensagem);
