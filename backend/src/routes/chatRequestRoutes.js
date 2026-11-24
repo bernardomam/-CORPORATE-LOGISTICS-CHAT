@@ -20,7 +20,7 @@ const router = express.Router();
 router.use(autenticarToken);
 
 // Usuários autenticados podem solicitar conversas
-router.post('/', solicitar);
+router.post('/', (req,res,next)=>Promise.resolve(solicitar(req,res,next)).catch(next));
 
 // Somente a equipe de TI pode consultar solicitações
 router.get('/', exigirTI, listar);
