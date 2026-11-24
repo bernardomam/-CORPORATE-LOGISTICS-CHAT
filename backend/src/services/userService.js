@@ -187,6 +187,7 @@ export async function desativarUsuario(
     administrador
 ) {
     validarAdministrador(administrador);
+    validarId(id);
 
     if (
         typeof id !== 'string' ||
@@ -287,4 +288,9 @@ export async function atualizarUsuario(id, body, administrador) {
 export async function reativarUsuario(id, administrador){
     validarAdministrador(administrador); validarId(id);
     return executarComContextoRLS(administrador,tx=>tx.user.update({where:{id,companyId:administrador.companyId},data:{status:'ACTIVE'},select:camposUsuario}));
+}
+
+export async function listarColegas(usuario){
+    if(!usuario?.id||!usuario?.companyId)throw falha(401,'Usuário não autenticado.');
+    return executarComContextoRLS(usuario,tx=>tx.user.findMany({where:{companyId:usuario.companyId,status:'ACTIVE',id:{not:usuario.id}},select:{id:true,name:true,departmentId:true,department:{select:{name:true}}},orderBy:[{name:'asc'},{id:'asc'}]}));
 }
