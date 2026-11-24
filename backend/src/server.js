@@ -47,7 +47,7 @@ app.disable('x-powered-by');
 app.use((req, res, next) => {
     const origem = req.headers.origin;
 
-    res.setHeader('Vary', 'Origin');
+    res.vary('Origin');
 
     if (origem && ORIGENS_PERMITIDAS.has(origem)) {
         res.setHeader('Access-Control-Allow-Origin', origem);
@@ -145,6 +145,10 @@ app.get('/', (req, res) => {
 // STATUS DA API E SUPABASE
 // ================================
 
+app.get('/api/health', (req, res) => {
+    return res.status(200).json({ sucesso: true, mensagem: 'API disponível' });
+});
+
 app.get('/api/status', async (req, res) => {
     try {
         await prisma.$queryRaw`SELECT 1`;
@@ -193,7 +197,7 @@ app.use((req, res) => {
     return res.status(404).json({
         sucesso: false,
         mensagem: 'Rota não encontrada.',
-        caminho: req.originalUrl
+        caminho: req.path
     });
 });
 
