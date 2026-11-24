@@ -4,6 +4,8 @@ import {chaveJWT} from '../utils/authValidation.js';
 export async function limitarAuth(req,res,next){
  try{
  const identity=req.user?.id || req.ip || req.socket.remoteAddress || 'unknown';
+ // Remove expired buckets opportunistically; no raw IP is stored.
+ await prisma.$executeRaw`DELETE FROM "AuthAttempt" WHERE "expiresAt" < now() - interval '1 hour'`;
  const key=createHmac('sha256',chaveJWT()).update('auth-limit:'+identity).digest('hex');
  const rows=await prisma.$queryRaw`INSERT INTO "AuthAttempt" (key,count,"expiresAt") VALUES (${key},1,now()+interval '15 minutes')
  ON CONFLICT (key) DO UPDATE SET count=CASE WHEN "AuthAttempt"."expiresAt"<=now() THEN 1 ELSE LEAST("AuthAttempt".count+1,11) END,
