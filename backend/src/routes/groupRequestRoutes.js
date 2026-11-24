@@ -1,0 +1,13 @@
+import {Router} from 'express';
+import {autenticarToken,exigirTI} from '../middlewares/authMiddleware.js';
+import {solicitarGrupo,listarPedidosGrupo,revisarPedidoGrupo} from '../services/groupRequestService.js';
+import {responderFalha} from '../utils/adminValidation.js';
+const router=Router();
+router.use(autenticarToken);
+const wrap=(fn,status=200)=>async(req,res,next)=>{try{return res.status(status).json({sucesso:true,dados:await fn(req)});}catch(e){return responderFalha(e,res,next);}};
+router.post('/',wrap(req=>solicitarGrupo(req.user,req.body),201));
+router.get('/minhas',wrap(req=>listarPedidosGrupo(req.user)));
+router.get('/',exigirTI,wrap(req=>listarPedidosGrupo(req.user,true)));
+router.patch('/:id/aprovar',exigirTI,wrap(req=>revisarPedidoGrupo(req.user,req.params.id,true)));
+router.patch('/:id/rejeitar',exigirTI,wrap(req=>revisarPedidoGrupo(req.user,req.params.id,false)));
+export default router;

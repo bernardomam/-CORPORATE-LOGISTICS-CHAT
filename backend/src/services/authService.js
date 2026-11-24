@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { sessionVersion } from '../utils/sessionVersion.js';
 import { chaveJWT as obterChaveJWT, senhaValida } from '../utils/authValidation.js';
 import { falha } from '../utils/adminValidation.js';
 import jwt from 'jsonwebtoken';
@@ -99,7 +100,8 @@ export async function autenticarUsuario(email, password) {
     const token = jwt.sign(
         {
             companyId: usuario.companyId,
-            role: usuario.role
+            role: usuario.role,
+            sv: sessionVersion(usuario.passwordHash,chaveJWT)
         },
         chaveJWT,
         {

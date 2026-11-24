@@ -1,5 +1,6 @@
 
 import jwt from 'jsonwebtoken';
+import { sessionVersion } from '../utils/sessionVersion.js';
 import { chaveJWT as obterChaveJWT, claimsValidos } from '../utils/authValidation.js';
 import { prisma } from '../config/prisma.js';
 
@@ -85,6 +86,7 @@ export async function autenticarToken(req, res, next) {
                 id: true,
                 name: true,
                 email: true,
+                passwordHash: true,
                 role: true,
                 status: true,
                 companyId: true,
@@ -109,6 +111,8 @@ export async function autenticarToken(req, res, next) {
                 'Usuário inválido ou desativado.'
             );
         }
+
+        if (dadosToken.sv !== sessionVersion(usuario.passwordHash,chaveJWT)) return responderErro(res,401,'Sessão expirada. Faça login novamente.');
 
         // Verificar se a empresa existe e está ativa.
         if (
