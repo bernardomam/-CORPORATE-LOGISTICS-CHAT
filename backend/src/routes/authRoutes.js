@@ -13,21 +13,28 @@ const tentativasLogin = new Map();
 
 const JANELA_TEMPO = 15 * 60 * 1000;
 const MAX_TENTATIVAS = 10;
+const MAX_REGISTROS = 10000;
+let proximaLimpeza = 0;
 
 function limitarTentativasLogin(req, res, next) {
     const agora = Date.now();
     const ip = req.ip || req.socket.remoteAddress || 'desconhecido';
 
     // Limpar registros expirados.
-    for (const [chave, registro] of tentativasLogin.entries()) {
-        if (agora >= registro.expiraEm) {
-            tentativasLogin.delete(chave);
+    if (agora >= proximaLimpeza) {
+        for (const [chave, registro] of tentativasLogin.entries()) {
+            if (agora >= registro.expiraEm) tentativasLogin.delete(chave);
         }
+        proximaLimpeza = agora + 60000;
     }
 
     let registro = tentativasLogin.get(ip);
 
-    if (!registro) {
+    if (!registro || agora >= registro.expiraEm) {
+        if (!registro && tentativasLogin.size >= MAX_REGISTROS) {
+            res.set('Retry-After', '60');
+            return res.status(429).json({ sucesso: false, mensagem: 'Muitas tentativas. Tente novamente em instantes.' });
+        }
         registro = {
             tentativas: 0,
             expiraEm: agora + JANELA_TEMPO
