@@ -12,7 +12,7 @@ import {
     exigirTI
 } from '../middlewares/authMiddleware.js';
 
-import { consultarUsuario, atualizarUsuario, reativarUsuario } from '../services/userService.js';
+import { consultarUsuario, atualizarUsuario, reativarUsuario, listarColegas } from '../services/userService.js';
 import { responderFalha } from '../utils/adminValidation.js';
 const router = Router();
 
@@ -25,6 +25,7 @@ const router = Router();
 // 2. Usuário ativo
 // 3. Empresa ativa
 // 4. Perfil IT_ADMIN
+router.get('/colegas',autenticarToken,async(req,res,next)=>{try{const usuarios=await listarColegas(req.user);return res.json({sucesso:true,total:usuarios.length,usuarios});}catch(e){return responderFalha(e,res,next);}});
 router.use(autenticarToken, exigirTI);
 
 // ==========================================
