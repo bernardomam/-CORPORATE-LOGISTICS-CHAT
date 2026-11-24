@@ -22,13 +22,10 @@ export async function revisarPedidoGrupo(u,id,aprovar){
  const pedido=await tx.groupRequest.findFirst({where:{id,companyId:u.companyId}});
  if(!pedido)throw falha(404,'Solicitação não encontrada.');
  if(pedido.requesterId===u.id)throw falha(403,'Não pode analisar a própria solicitação.');
- const reserva=await tx.groupRequest.updateMany({where:{id,companyId:u.companyId,status:'PENDING'},data:{status:aprovar?'APPROVED':'REJECTED',reviewedById:u.id,reviewedAt:new Date()}});
+ if(pedido.status!=='PENDING')throw falha(409,'Solicitação já analisada.');
+ const grupo=aprovar?await criarGrupoInterno(tx,u,{name:pedido.name,memberIds:pedido.memberIds}):null;
+ const reserva=await tx.groupRequest.updateMany({where:{id,companyId:u.companyId,status:'PENDING'},data:{status:aprovar?'APPROVED':'REJECTED',reviewedById:u.id,reviewedAt:new Date(),groupId:grupo?.id??null}});
  if(reserva.count!==1)throw falha(409,'Solicitação já analisada.');
- if(aprovar){
- const grupo=await criarGrupoInterno(tx,u,{name:pedido.name,memberIds:pedido.memberIds});
- // Link must be set while the request is still writable by the reviewer policy.
- await tx.groupRequest.update({where:{id},data:{groupId:grupo.id}});
- }
  return tx.groupRequest.findUnique({where:{id}});
  });
 }
