@@ -1,5 +1,6 @@
 
 import bcrypt from 'bcryptjs';
+import { validarId, validarNome, validarCorpo, falha } from '../utils/adminValidation.js';
 import { executarComContextoRLS } from '../config/rlsContext.js';
 
 // ==========================================
