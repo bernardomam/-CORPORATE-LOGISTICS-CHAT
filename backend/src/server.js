@@ -7,6 +7,7 @@ import { prisma } from './config/prisma.js';
 import companyRoutes from './routes/companyRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import departmentRoutes from './routes/departmentRoutes.js';
 import groupRoutes from './routes/groupRoutes.js';
 import myGroupRoutes from './routes/myGroupRoutes.js';
 import groupMessageRoutes from './routes/groupMessageRoutes.js';
@@ -183,6 +184,7 @@ app.get('/api/status', async (req, res) => {
 app.use('/api/companies', companyRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/departments', departmentRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/my-groups', myGroupRoutes);
 app.use('/api/group-messages', groupMessageRoutes);
