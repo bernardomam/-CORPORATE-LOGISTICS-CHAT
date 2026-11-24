@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon --exec tsx src/server.js",
     "start": "tsx src/server.js",
-    "test": "echo \"Testes ainda não configurados\"",
+    "test": "node --test tests/*.test.js",
     "postinstall": "prisma generate && tsc --project tsconfig.build.json"
   },
   "dependencies": {
