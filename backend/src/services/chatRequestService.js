@@ -1,4 +1,5 @@
 
+import { validarId } from '../utils/adminValidation.js';
 import { executarComContextoRLS } from '../config/rlsContext.js';
 import { verificarHorarioFuncionamento } from '../utils/horarioFuncionamento.js';
 
@@ -125,7 +126,7 @@ export async function solicitarConversa(
         );
     }
 
-    const destinatarioId = requestedUserId.trim();
+    const destinatarioId = validarId(requestedUserId.trim());
 
     if (destinatarioId === usuario.id) {
         throw criarErro(
@@ -168,8 +169,8 @@ export async function solicitarConversa(
                 await tx.privateChat.findFirst({
                     where: {
                         companyId: usuario.companyId,
-                        pairKey,
-                        status: 'ACTIVE'
+                        status: 'ACTIVE',
+                        OR:[{pairKey},{pairKey:null,AND:[{members:{some:{userId:usuario.id}}},{members:{some:{userId:destinatarioId}}}]}]
                     },
                     select: {
                         id: true
@@ -300,7 +301,7 @@ export async function aprovarSolicitacao(
         );
     }
 
-    const id = solicitacaoId.trim();
+    const id = validarId(solicitacaoId.trim());
 
     // A transação RLS substitui a transação
     // Prisma anterior. Não há transação aninhada.
@@ -556,4 +557,9 @@ export async function rejeitarSolicitacao(
             });
         }
     );
+}
+
+export async function listarMinhasSolicitacoes(usuario){
+    validarEmpresa(usuario);
+    return executarComContextoRLS(usuario,tx=>tx.chatRequest.findMany({where:{companyId:usuario.companyId,OR:[{requesterId:usuario.id},{requestedUserId:usuario.id}]},orderBy:{createdAt:'desc'},include:{requester:{select:{id:true,name:true}},requestedUser:{select:{id:true,name:true}}}}));
 }
