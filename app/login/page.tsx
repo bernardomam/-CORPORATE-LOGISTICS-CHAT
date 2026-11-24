@@ -38,20 +38,25 @@ export default function LoginPage() {
         throw new Error(dados.mensagem || "Não foi possível realizar o login.");
       }
 
-      if (
-        !dados.token ||
-        !dados.usuario?.id ||
-        !["USER", "IT_ADMIN"].includes(dados.usuario.role)
-      ) {
-        throw new Error("Resposta de autenticação inválida.");
-      }
+     if (
+  !dados.token ||
+  !dados.usuario?.id ||
+  !dados.usuario?.name ||
+  !dados.usuario?.email ||
+  !["USER", "IT_ADMIN"].includes(dados.usuario.role)
+) {
+  throw new Error("Resposta de autenticação inválida.");
+}
 
-      autenticar({
-        id: dados.usuario.id,
-        name: dados.usuario.name,
-        email: dados.usuario.email,
-        role: dados.usuario.role,
-      });
+      autenticar(
+        {
+          id: dados.usuario.id,
+          name: dados.usuario.name,
+          email: dados.usuario.email,
+          role: dados.usuario.role,
+        },
+        dados.token
+      );
 
       sessionStorage.setItem("callzup_login_pendente", "true");
 
