@@ -1,4 +1,5 @@
 
+import { validarId } from '../utils/adminValidation.js';
 import { executarComContextoRLS } from '../config/rlsContext.js';
 import {
     verificarHorarioFuncionamento
@@ -45,7 +46,7 @@ function validarHorario() {
 function validarIdentificador(valor, mensagem) {
     if (
         typeof valor !== 'string' ||
-        !valor.trim()
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor)
     ) {
         throw criarErro(mensagem);
     }
@@ -179,7 +180,8 @@ async function buscarMensagemDoGrupo(
 
 export async function listarMensagensGrupo(
     usuario,
-    grupoId
+    grupoId,
+    pagina = {limit:50,before:null}
 ) {
     validarUsuario(usuario);
 
@@ -193,16 +195,17 @@ export async function listarMensagensGrupo(
                     grupoId
                 );
 
-            return tx.message.findMany({
-                where: {
-                    groupId: grupo.id,
-                    companyId: usuario.companyId
-                },
-                include: incluirDadosMensagem,
-                orderBy: {
-                    createdAt: 'asc'
-                }
-            });
+            const where={groupId:grupo.id,companyId:usuario.companyId};
+            if(pagina.before){
+                validarId(pagina.before);
+                const cursor=await tx.message.findFirst({where:{...where,id:pagina.before},select:{id:true,createdAt:true}});
+                if(!cursor)throw criarErro('Cursor não encontrado neste grupo.',404);
+                where.OR=[{createdAt:{lt:cursor.createdAt}},{createdAt:cursor.createdAt,id:{lt:cursor.id}}];
+            }
+            const registros=await tx.message.findMany({where,include:incluirDadosMensagem,orderBy:[{createdAt:'desc'},{id:'desc'}],take:pagina.limit+1});
+            const temMais=registros.length>pagina.limit;
+            const mensagens=registros.slice(0,pagina.limit).reverse();
+            return {mensagens,temMais,proximoCursor:temMais?mensagens[0].id:null};
         }
     );
 }
