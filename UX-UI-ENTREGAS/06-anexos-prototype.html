@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CallZUP · Protótipo de anexos</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#172033;background:#f3f5f9}*{box-sizing:border-box}body{margin:0}.shell{max-width:1080px;margin:32px auto;padding:0 18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.brand{font-weight:800;font-size:20px}.tag{font-size:12px;color:#475569;background:#e2e8f0;border-radius:20px;padding:7px 11px}.layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.8fr);gap:18px}.panel{background:white;border:1px solid #e1e6ef;border-radius:16px;padding:20px;box-shadow:0 8px 30px #1720330a}.muted{color:#64748b;font-size:13px}.conversation{height:260px;overflow:auto;background:#f8fafc;border:1px solid #e8edf4;border-radius:12px;padding:14px;margin:14px 0}.bubble{background:#e9f2ff;border-radius:12px 12px 3px 12px;padding:11px 13px;margin:8px 0 8px auto;max-width:75%;font-size:14px}.filebubble{background:white;border:1px solid #dbe3ee;border-radius:10px;padding:12px;margin-top:8px;max-width:85%;font-size:13px}.composer{border:1px solid #dce3ed;border-radius:12px;padding:12px}.drop{border:2px dashed #b8c5d8;border-radius:12px;padding:20px;text-align:center;background:#fafcff;transition:.15s}.drop.over{border-color:#2563eb;background:#eff6ff}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}button{border:0;border-radius:9px;padding:10px 14px;font-weight:650;cursor:pointer;background:#e8edf5;color:#243047}button.primary{background:#2459d3;color:white}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.queue{display:grid;gap:9px;margin-top:14px}.item{border:1px solid #e1e7ef;border-radius:11px;padding:12px;display:grid;grid-template-columns:1fr auto;gap:8px}.name{font-weight:650;overflow-wrap:anywhere;font-size:14px}.meta{font-size:12px;color:#64748b;margin-top:3px}.state{font-size:12px;color:#475569;margin-top:7px}.bar{height:6px;background:#e8edf5;border-radius:9px;margin-top:7px;overflow:hidden}.bar span{display:block;height:100%;width:0;background:#2563eb;transition:width .2s}.remove{padding:6px 9px;align-self:start}.hint{font-size:12px;color:#64748b;line-height:1.5}.side h3{margin-top:0}.side li{margin:9px 0;font-size:13px;line-height:1.45}.notice{border-radius:10px;padding:11px;background:#fff7e6;color:#7c4a03;font-size:12px;line-height:1.5;margin-top:14px}.empty{color:#94a3b8;text-align:center;padding:22px;font-size:13px}.status{min-height:20px;font-size:13px;margin-top:10px;color:#334155}.small{font-size:12px;color:#64748b}@media(max-width:760px){.shell{margin:16px auto}.layout{grid-template-columns:1fr}.panel{padding:15px}.top{align-items:flex-start;flex-direction:column}.conversation{height:220px}.bubble{max-width:90%}.filebubble{max-width:100%}}
+</style></head>
+<body><main class="shell">
+<header class="top"><div class="brand">CallZUP <span class="muted">/ Conversa operacional</span></div><span class="tag">Protótipo UX/UI · dados locais</span></header>
+<div class="layout"><section class="panel">
+<h2 style="margin:0">Conversa #LOG-2048</h2><p class="muted">Equipe de operações · demonstração de anexos</p>
+<div class="conversation" id="conversation" aria-label="Histórico da conversa">
+<div class="bubble">Segue a atualização da ocorrência. Vou anexar os documentos de apoio.</div>
+<div class="filebubble">📄 <strong>comprovante-entrega.pdf</strong><div class="meta">PDF · enviado por Marina · 09:42</div><div class="actions"><button type="button" onclick="alert('Prévia demonstrativa: arquivo fictício.')">Visualizar</button><button type="button" onclick="alert('Download real não está conectado neste protótipo.')">Baixar</button></div></div>
+</div>
+<div class="composer">
+<div class="drop" id="drop" tabindex="0" role="region" aria-label="Área para adicionar arquivos">
+<strong>Adicione arquivos à conversa</strong><p class="muted">Arraste arquivos para esta área ou escolha no dispositivo.</p>
+<input id="picker" type="file" multiple hidden>
+<button type="button" id="choose">Escolher arquivos</button>
+</div>
+<div class="queue" id="queue" aria-live="polite"><div class="empty" id="empty">Nenhum arquivo selecionado.</div></div>
+<div class="actions"><button type="button" id="clear">Limpar fila</button><button type="button" class="primary" id="send" disabled>Enviar arquivos</button></div>
+<div class="status" id="status" role="status" aria-live="polite"></div>
+</div>
+</section>
+<aside class="panel side"><h3>Regras da experiência</h3><ul>
+<li>Selecione um ou vários arquivos e revise a fila antes de enviar.</li>
+<li>Remova individualmente um arquivo antes do envio.</li>
+<li>O protótipo simula progresso e resultado local; não faz upload real.</li>
+<li>Limites e formatos aceitos devem vir da configuração do produto.</li>
+<li>Visualizar/baixar no histórico são ações ilustrativas, sem serviço conectado.</li>
+</ul><div class="notice"><strong>Dependências pendentes</strong><br>PO/Tech Lead precisam definir formatos, tamanho máximo, quantidade, cancelamento, armazenamento, retenção e permissões. Nenhum limite técnico foi presumido.</div><p class="hint">Dica: teste com PDFs, imagens ou outros arquivos locais. O nome e o tamanho são lidos apenas no navegador nesta demonstração.</p></aside></div></main>
+<script>
+const picker=document.getElementById('picker'),choose=document.getElementById('choose'),drop=document.getElementById('drop'),queue=document.getElementById('queue'),empty=document.getElementById('empty'),send=document.getElementById('send'),clear=document.getElementById('clear'),status=document.getElementById('status'),conversation=document.getElementById('conversation');
+let files=[];
+const fmt=n=>n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(2)+' MB';
+function add(list){for(const f of list){if(!files.some(x=>x.name===f.name&&x.size===f.size&&x.lastModified===f.lastModified))files.push({file:f,state:'Pronto para enviar',progress:0});}render();status.textContent=files.length?'Revise os arquivos antes de enviar.':'';}
+function render(){queue.innerHTML='';empty.style.display=files.length?'none':'block';if(!files.length)queue.append(empty);files.forEach((x,i)=>{const el=document.createElement('div');el.className='item';const info=document.createElement('div');const nm=document.createElement('div');nm.className='name';nm.textContent=x.file.name;const meta=document.createElement('div');meta.className='meta';meta.textContent=(x.file.type||'Tipo não identificado')+' · '+fmt(x.file.size);const st=document.createElement('div');st.className='state';st.textContent=x.state;info.append(nm,meta,st);if(x.state==='Enviando…'){const bar=document.createElement('div');bar.className='bar';const span=document.createElement('span');span.style.width=x.progress+'%';bar.append(span);info.append(bar);}const rm=document.createElement('button');rm.className='remove';rm.type='button';rm.textContent='Remover';rm.setAttribute('aria-label','Remover '+x.file.name);rm.disabled=x.state==='Enviando…';rm.onclick=()=>{files.splice(i,1);render();};el.append(info,rm);queue.append(el);});send.disabled=!files.some(x=>x.state==='Pronto para enviar'||x.state==='Falha no envio');send.textContent='Enviar '+files.length+' arquivo(s)';}
+choose.onclick=()=>picker.click();drop.onclick=e=>{if(e.target===drop||e.target.tagName==='P'||e.target.tagName==='STRONG')picker.click();};drop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();picker.click();}};picker.onchange=()=>{add(picker.files);picker.value='';};
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));drop.addEventListener('drop',e=>add(e.dataTransfer.files));
+clear.onclick=()=>{if(files.some(x=>x.state==='Enviando…'))return;files=[];render();status.textContent='Fila limpa.';};
+send.onclick=()=>{const pending=files.filter(x=>x.state==='Pronto para enviar'||x.state==='Falha no envio');if(!pending.length)return;pending.forEach(x=>{x.state='Enviando…';x.progress=0;});render();status.textContent='Simulação local de envio iniciada.';let tick=0;const timer=setInterval(()=>{tick+=1;pending.forEach(x=>{x.progress=Math.min(100,x.progress+Math.floor(18+Math.random()*24));if(x.progress>=100)x.state='Enviado';});render();if(tick>=5||pending.every(x=>x.state==='Enviado')){clearInterval(timer);pending.forEach(x=>{if(x.state!=='Enviado')x.state='Enviado';});render();status.textContent='Simulação concluída. Nenhum arquivo foi transmitido para um servidor.';pending.forEach(x=>{const card=document.createElement('div');card.className='filebubble';const title=document.createElement('strong');title.textContent='📎 '+x.file.name;const meta=document.createElement('div');meta.className='meta';meta.textContent=fmt(x.file.size)+' · enviado agora (simulação)';card.append(title,meta);conversation.append(card);});conversation.scrollTop=conversation.scrollHeight;}} ,350);};
+render();
+</script></body></html>
