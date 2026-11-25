@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CallZUP — Protótipo de onboarding</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#172033;background:#f3f5f8}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}
+.shell{width:min(100%,760px);background:#fff;border:1px solid #e1e6ee;border-radius:22px;box-shadow:0 18px 55px #1c2d4615;overflow:hidden}
+.top{padding:22px 28px;border-bottom:1px solid #e8ecf2;display:flex;justify-content:space-between;align-items:center}
+.brand{font-size:19px;font-weight:800;letter-spacing:-.5px}.brand span{color:#3267d6}.tag{font-size:12px;color:#667085;background:#f2f4f7;padding:7px 10px;border-radius:20px}
+.progress{height:4px;background:#edf0f5}.bar{height:4px;width:14.28%;background:#3267d6;transition:width .2s}
+main{padding:clamp(24px,5vw,52px);min-height:430px}.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#3267d6}
+h1{font-size:clamp(26px,4vw,36px);letter-spacing:-1px;line-height:1.15;margin:12px 0}
+p{color:#5e6878;line-height:1.65;max-width:590px}.org{border:1px solid #e3e8f0;background:#f8faff;border-radius:14px;padding:18px;margin:24px 0}.org b{display:block;margin-bottom:6px}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+button{border:0;border-radius:10px;padding:13px 19px;font-weight:700;font-size:14px;cursor:pointer}
+.primary{background:#245bd4;color:white}.secondary{background:#eef2f7;color:#253047}.textbtn{background:transparent;color:#4b5d7b}
+button:focus-visible{outline:3px solid #91b4ff;outline-offset:3px}
+.notice{padding:14px 16px;border-radius:12px;background:#fff7e8;color:#83530a;margin-top:18px;font-size:14px}
+.field{display:block;margin:18px 0;color:#344054;font-size:14px;font-weight:600}
+input{display:block;width:100%;margin-top:8px;border:1px solid #cfd6e2;border-radius:9px;padding:13px;font:inherit}
+ul{padding-left:22px;color:#5e6878;line-height:1.9}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:24px}
+.card{border:1px solid #e2e7ef;border-radius:13px;padding:16px;background:#fff}.card strong{display:block;margin-bottom:7px}
+.foot{padding:18px 28px;border-top:1px solid #e8ecf2;color:#7a8494;font-size:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+@media(max-width:520px){body{padding:10px}.shell{border-radius:15px}.top{padding:18px}.foot{padding:16px 20px}main{min-height:470px}.actions button{width:100%}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="top"><div class="brand">Call<span>ZUP</span></div><div class="tag">Protótipo UX/UI · Onboarding</div></header>
+<div class="progress" aria-label="Progresso do onboarding"><div class="bar" id="bar"></div></div>
+<main id="screen" aria-live="polite"></main>
+<footer class="foot"><span>Experiência demonstrativa — dados fictícios</span><span id="step">Etapa 1 de 7</span></footer>
+</div>
+<script>
+const screens=[
+{eyebrow:"Primeiro acesso",title:"Você foi convidado para o CallZUP",body:"Seu acesso está associado à organização abaixo. Continue para entrar na plataforma.",extra:'<div class="org"><b>Transportadora Exemplo</b><span>Convite para acesso ao ambiente de operações</span></div><div class="notice">Se você não esperava este convite, não continue. Procure o responsável pelo seu acesso.</div>',primary:"Aceitar convite",secondary:"Já tenho uma conta"},
+{eyebrow:"Validação do convite",title:"Convite confirmado",body:"Este convite de demonstração está válido. Em um ambiente real, essa etapa consulta o serviço de convites antes de liberar a próxima tela.",extra:'<div class="org"><b>O que acontece agora?</b><span>Você será encaminhado para autenticação e, em seguida, verá o vínculo organizacional associado ao convite.</span></div>',primary:"Continuar",secondary:"Voltar"},
+{eyebrow:"Acesso seguro",title:"Entre para continuar",body:"Esta tela representa a etapa de autenticação. O protótipo não coleta nem envia credenciais.",extra:'<label class="field">E-mail<input type="email" placeholder="seu.email@empresa.com" autocomplete="email"></label><label class="field">Senha<input type="password" placeholder="Digite sua senha" autocomplete="current-password"></label><div class="notice">Use o mecanismo de autenticação já adotado pelo produto. Não informe credenciais reais neste protótipo.</div>',primary:"Simular acesso",secondary:"Voltar"},
+{eyebrow:"Seu ambiente",title:"Seu acesso está vinculado a",body:"Essas informações representam o contexto organizacional associado à sua conta.",extra:'<div class="org"><b>Transportadora Exemplo</b><span>Organização</span><hr><b>Unidade Salvador</b><span>Unidade atribuída</span><hr><b>Operações</b><span>Equipe atribuída</span></div><p>Se alguma informação estiver incorreta, procure o responsável pelo seu acesso.</p>',primary:"Continuar",secondary:"Voltar"},
+{eyebrow:"Boas-vindas",title:"Bem-vindo ao CallZUP",body:"Use o CallZUP para acompanhar conversas e informações da sua operação em um só lugar.",extra:'<div class="cards"><div class="card"><strong>Converse</strong><span>Troque mensagens com as equipes disponíveis para você.</span></div><div class="card"><strong>Acompanhe</strong><span>Consulte atualizações relacionadas à operação.</span></div></div>',primary:"Conhecer o ambiente",secondary:"Ir para conversas"},
+{eyebrow:"Orientação rápida",title:"Tudo pronto para começar",body:"Três pontos para encontrar o que você precisa no dia a dia.",extra:'<div class="cards"><div class="card"><strong>1. Suas conversas</strong><span>Acesse as conversas das quais você participa.</span></div><div class="card"><strong>2. Mensagens</strong><span>Abra uma conversa para acompanhar e enviar atualizações.</span></div><div class="card"><strong>3. Busca</strong><span>Localize conversas e mensagens disponíveis para você.</span></div></div>',primary:"Concluir",secondary:"Voltar"},
+{eyebrow:"Pronto",title:"Suas conversas",body:"Quando uma conversa for disponibilizada para você, ela aparecerá nesta área.",extra:'<div class="org"><b>Nenhuma conversa por aqui ainda</b><span>Você ainda não participa de conversas. Quando uma equipe disponibilizar uma conversa para você, ela aparecerá nesta lista.</span></div>',primary:"Reiniciar demonstração",secondary:"Voltar"}
+];
+let current=0;
+function render(){
+ const s=screens[current];document.getElementById("screen").innerHTML='<div class="eyebrow">'+s.eyebrow+'</div><h1>'+s.title+'</h1><p>'+s.body+'</p>'+s.extra+'<div class="actions"><button class="primary" id="next">'+s.primary+'</button><button class="secondary" id="back">'+s.secondary+'</button></div>';
+ document.getElementById("step").textContent='Etapa '+(current+1)+' de '+screens.length;
+ document.getElementById("bar").style.width=((current+1)/screens.length*100)+'%';
+ document.getElementById("next").onclick=()=>{current=current===screens.length-1?0:Math.min(current+1,screens.length-1);render()};
+ document.getElementById("back").onclick=()=>{if(current===0){current=2}else if(current===4){current=6}else{current=Math.max(0,current-1)}render()};
+}
+render();
+</script>
+</body>
+</html>
