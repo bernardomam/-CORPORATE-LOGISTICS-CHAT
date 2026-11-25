@@ -1,196 +1,122 @@
-# Issue #69 — Testes de Usabilidade
+# Testes de usabilidade com operadores logísticos — plano de pesquisa
 
-## 1. Objetivo
+## Objetivo e perguntas
+Avaliar se profissionais de operação logística conseguem localizar conversas, comunicar divergências e acompanhar ocorrências com clareza e segurança. Complementa #58 (jornadas) e #61 (acessibilidade), sem refazer esses entregáveis.
 
-Validar se os usuários do CallZUP conseguem utilizar as principais funcionalidades do sistema de maneira simples, intuitiva e eficiente.
+Perguntas:
+1. Encontram a conversa operacional correta?
+2. Entendem como comunicar divergência e quais dados incluir?
+3. Localizam ocorrência, interpretam status e próximo passo?
+4. Reconhecem estados de envio, erro e confirmação?
+5. Quais termos/controles geram hesitação ou erro?
 
-## 2. Público-alvo
+## Perfis e amostra
+Rodada exploratória sugerida: 3–5 voluntários, buscando:
+- Operador(a) logístico(a), com experiência de execução diária.
+- Supervisor(a), com acompanhamento de equipe e exceções.
+- Gestor(a) de unidade/CD, com visão de operação e escalonamento.
 
-- Operadores logísticos.
-- Supervisores.
-- Gestores de unidades e centros de distribuição.
+A amostra é qualitativa, não estatisticamente representativa. Usar códigos P01, P02 etc. Registrar apenas perfil amplo e familiaridade autodeclarada. Não coletar nome, telefone, matrícula, empresa, rota real ou dados confidenciais.
 
-## 3. Cenários de teste
+## Método e duração
+Sessão individual moderada, presencial ou remota, com protótipo navegável; 25–35 minutos. Pedir que a pessoa pense em voz alta. Não ensinar a solução durante a tarefa; registrar ajuda necessária. Fazer piloto interno para verificar roteiro, sem contar piloto como participante representativo. Gravação é opcional e exige consentimento específico; preferir notas anonimizadas.
 
-### Cenário 1 — Localizar uma conversa
-**Tarefa:** Encontrar uma conversa relacionada a uma operação logística.
+## Preparação
+- [ ] Confirmar participantes e perfis gerais.
+- [ ] Confirmar participação voluntária e consentimento para anotações.
+- [ ] Selecionar versão do protótipo e verificar links/estados.
+- [ ] Preparar dados fictícios, nunca dados reais da operação.
+- [ ] Testar ambiente, compartilhamento de tela e cronômetro.
+- [ ] Preparar ficha e definir moderador/observador.
+- [ ] Se houver gravação, obter autorização separada e explicar uso/retensão.
+- [ ] Explicar que o produto está sendo avaliado, não a pessoa.
 
-**O que observar:**
-- O usuário consegue localizar a conversa?
-- A navegação é intuitiva?
-- Existem dificuldades para identificar a conversa correta?
+## Abertura do moderador
+“Obrigado por participar. Vamos observar como a interface funciona em algumas situações de rotina logística. Não estamos avaliando você; queremos descobrir o que está claro e o que precisa melhorar. Diga o que está procurando e o que espera que aconteça. Você pode parar a qualquer momento. Usaremos dados fictícios e registraremos observações sem identificar você.”
 
-### Cenário 2 — Comunicar divergência de estoque
-**Tarefa:** Utilizar o sistema para comunicar uma divergência de estoque.
+Pergunta inicial: “Qual é, em linhas gerais, sua função na operação e com que frequência utiliza ferramentas digitais para se comunicar ou acompanhar tarefas?” Não pedir nome, empresa ou detalhes confidenciais.
 
-**O que observar:**
-- O usuário entende onde iniciar a comunicação?
-- Os campos e instruções são claros?
-- O envio da informação é fácil?
+## Roteiro de tarefas
+### 1 — Localizar uma conversa
+Cenário: “Você precisa encontrar a conversa da equipe responsável por uma operação em andamento. Localize a conversa indicada no cenário.”
+Sucesso: abre a conversa correta sem ajuda.
+Observar: ponto de entrada, compreensão dos nomes/indicadores, tentativas, retorno, tempo aproximado e ajuda solicitada.
+Perguntas neutras: “O que você esperava encontrar aqui?”; “Como decidiu abrir essa conversa?”
 
-### Cenário 3 — Acompanhar uma ocorrência
-**Tarefa:** Localizar uma ocorrência e consultar seu andamento.
+### 2 — Comunicar divergência de estoque
+Cenário: “Durante a conferência, você percebeu uma diferença entre a quantidade registrada e a quantidade encontrada. Mostre como comunicaria isso à equipe responsável usando os dados fictícios.”
+Sucesso: encontra o fluxo e identifica dados necessários. Se protótipo não permitir envio real, registrar apenas conclusão do fluxo demonstrativo, não envio real.
+Observar: ponto de entrada, campos, linguagem, anexos, revisão, confirmação e prevenção de envio duplicado.
+Perguntas: “Há alguma informação que você esperaria incluir?”; “O que indica que sua mensagem foi enviada?”
 
-**O que observar:**
-- O status da ocorrência é fácil de identificar?
-- As informações são apresentadas de maneira clara?
-- O histórico é compreensível?
+### 3 — Acompanhar uma ocorrência
+Cenário: “Uma ocorrência foi registrada anteriormente. Encontre-a, explique em que situação está e o que entende que acontece em seguida.”
+Sucesso: localiza ocorrência, identifica status/histórico e explica próximo passo apresentado, sem ajuda.
+Observar: localização, significado dos status, sequência temporal, responsável e ações disponíveis.
+Perguntas: “O que esse status significa para você?”; “O que faria depois?”
 
-## 4. Método de avaliação
+## Encerramento
+- “Qual tarefa foi mais simples? Por quê?”
+- “Em qual momento teve mais dúvida?”
+- “Faltou alguma informação importante?”
+- “O que mudaria primeiro?”
+- “Algo poderia causar erro na rotina real?”
 
-Durante os testes, registrar:
+Não induzir respostas nem pedir aprovação da interface.
 
-- Dificuldades encontradas.
-- Erros cometidos.
-- Dúvidas apresentadas.
-- Tempo necessário para concluir cada tarefa.
-- Sugestões dos participantes.
+## Métricas e ficha
+Para cada tarefa: conclusão (sem ajuda / com ajuda / não concluída), tempo aproximado, erros, tentativas, ajuda, hesitações, comentários anonimizados e confiança autodeclarada opcional (baixa/média/alta). Separar observação de interpretação.
 
-Não registrar dados pessoais desnecessários dos participantes.
-
-## 5. Critérios de avaliação
-
-Cada cenário deverá ser avaliado considerando:
-
-- Facilidade de navegação.
-- Clareza das informações.
-- Facilidade de execução.
-- Identificação de erros.
-- Satisfação do usuário.
-
-## 6. Resultados esperados
-
-Identificar problemas de usabilidade e propor melhorias para tornar o CallZUP mais intuitivo e eficiente para equipes logísticas.
-
-## 7. Pendências
-
-- [ ] Definir participantes dos testes.
-- [ ] Realizar sessões de teste com usuários.
-- [ ] Registrar resultados e evidências anonimizadas.
-- [ ] Priorizar melhorias identificadas.
-- [ ] Validar recomendações com o Product Owner e responsável por UX/UI.
-
-**Status:** Roteiro inicial preparado. Testes com usuários ainda pendentes.
-## 8. Planejamento das sessões de teste
-
-### 8.1 Participantes
-
-Recomenda-se convidar de 3 a 5 participantes para uma rodada inicial de testes.
-
-Perfil desejado:
-- Pessoas que trabalhem com operações logísticas.
-- Pessoas que utilizem ferramentas digitais durante a rotina profissional.
-- Preferencialmente, participantes com diferentes níveis de experiência.
-
-A participação deve ser voluntária.
-
-### 8.2 Duração
-
-Cada sessão deverá durar aproximadamente 20 a 30 minutos.
-
-Distribuição sugerida:
-- 5 minutos: apresentação e explicação.
-- 15 a 20 minutos: execução das tarefas.
-- 5 minutos: perguntas e feedback final.
-
-### 8.3 Preparação
-
-Antes de cada sessão:
-- [ ] Garantir acesso ao sistema ou protótipo.
-- [ ] Verificar se os cenários estão disponíveis.
-- [ ] Preparar o ambiente de teste.
-- [ ] Preparar a ficha de observação.
-- [ ] Explicar ao participante que o objetivo é avaliar o sistema, não seu desempenho.
-- [ ] Solicitar autorização para registrar observações.
-
-## 9. Roteiro de condução
-
-### Abertura
-
-Explicar ao participante:
-
-"Vamos avaliar a facilidade de utilização do CallZUP em algumas situações relacionadas à rotina logística. Não existem respostas certas ou erradas. Queremos identificar dificuldades para melhorar o sistema."
-
-### Tarefa 1 — Localizar uma conversa
-
-Solicitação ao participante:
-
-"Imagine que você precisa encontrar uma conversa relacionada a uma operação logística. Localize essa conversa no sistema."
-
-Registrar:
-- Se encontrou a conversa.
-- Quanto tempo levou.
-- Se precisou de ajuda.
-- Quais dificuldades encontrou.
-
-### Tarefa 2 — Comunicar divergência de estoque
-
-Solicitação ao participante:
-
-"Imagine que você identificou uma divergência de estoque e precisa comunicar essa situação à equipe responsável. Mostre como faria isso utilizando o sistema."
-
-Registrar:
-- Se identificou onde iniciar a comunicação.
-- Se compreendeu os campos disponíveis.
-- Se conseguiu concluir a tarefa.
-- Se teve dúvidas durante o processo.
-
-### Tarefa 3 — Acompanhar uma ocorrência
-
-Solicitação ao participante:
-
-"Imagine que uma ocorrência foi registrada anteriormente e você precisa verificar seu andamento. Localize a ocorrência e explique o que consegue entender sobre sua situação."
-
-Registrar:
-- Se encontrou a ocorrência.
-- Se identificou seu status.
-- Se compreendeu o histórico.
-- Se conseguiu identificar a próxima etapa.
-
-## 10. Ficha de registro dos resultados
-
-Para cada participante, preencher:
-
-| Informação | Registro |
+| Campo | Registro |
 |---|---|
-| Código do participante | P01, P02, P03... |
-| Perfil profissional | |
-| Tarefa executada | |
-| Concluiu sem ajuda? | |
+| Código | P01 |
+| Perfil amplo | Operador / Supervisor / Gestor |
+| Familiaridade | Baixa / média / alta (autodeclarada) |
+| Tarefa | 1 / 2 / 3 |
+| Resultado | Sem ajuda / com ajuda / não concluída |
 | Tempo aproximado | |
-| Dificuldade encontrada | |
-| Comentários | |
+| Erro ou hesitação observada | |
+| Comentário anonimizado | |
+| Ajuda necessária | |
+| Evidência sem dado pessoal | |
 
-Não registrar nomes ou dados pessoais desnecessários.
+## Severidade e síntese
+- **Crítico:** impede tarefa essencial ou cria risco operacional/privacidade.
+- **Alto:** causa erro provável, bloqueio ou interpretação incorreta importante.
+- **Médio:** gera esforço/hesitação, mas há alternativa.
+- **Baixo:** ajuste de clareza ou acabamento.
 
-## 11. Classificação dos problemas
+Cada achado deve conter ID, tarefa, observação, evidência anonimizada, n/N participantes (somente sessões realizadas), severidade, impacto, recomendação, dependência técnica e responsável. Em amostra pequena, não generalizar frequência.
 
-Classificar cada problema identificado:
+Após as sessões: agrupar problemas; separar observação de interpretação; priorizar por severidade, frequência observada e impacto; propor mudança verificável; registrar dependências; apresentar ao PO e UX/UI.
 
-- **Crítico:** impede a conclusão de uma tarefa importante.
-- **Alto:** causa dificuldade significativa ou risco de erro.
-- **Médio:** prejudica a experiência, mas permite concluir a tarefa.
-- **Baixo:** detalhe de compreensão ou apresentação visual.
+Modelo de achado:
+- ID/título:
+- Tarefa:
+- Evidência anonimizada:
+- Participantes afetados: n/N:
+- Severidade/impacto:
+- Recomendação:
+- Responsável sugerido:
+- Decisão PO/UX:
+- Estado: proposto / aceito / descartado / em implementação / retestado.
 
-## 12. Consolidação e recomendações
+## Estado e impedimento
+**Preparado:** objetivo, perguntas, perfis, amostra sugerida, roteiro, tarefas, métricas, ficha, severidade, privacidade e síntese.
 
-Depois das sessões:
-- Agrupar dificuldades semelhantes.
-- Identificar as tarefas com maior número de problemas.
-- Classificar os problemas por gravidade.
-- Propor melhorias de UX/UI.
-- Registrar quais recomendações dependem de decisões técnicas.
-- Apresentar os resultados ao Product Owner.
+**Não realizado:** recrutamento, consentimento, sessões com usuários reais, observações, evidências e validação de melhorias. Não foram disponibilizados participantes nem agenda/ambiente de pesquisa nesta tarefa.
 
-## 13. Critérios para considerar a entrega concluída
+**Próxima ação:** PO/Operações indicar 3–5 voluntários e responsável pelo agendamento; UX/UI conduzir sessões e preencher fichas. Se não houver participantes, manter o plano pronto e registrar o impedimento, sem fabricar resultados.
 
-- [ ] Roteiro de teste documentado.
-- [ ] Participantes definidos.
-- [ ] Ambiente de teste validado.
-- [ ] Sessões realizadas.
-- [ ] Resultados registrados.
-- [ ] Problemas classificados por prioridade.
-- [ ] Recomendações documentadas.
-- [ ] Resultados apresentados ao Product Owner.
+## Critérios de aceite e status
+- [x] Roteiro e perfis documentados.
+- [x] Método, tarefas e critérios de observação definidos.
+- [x] Ficha anonimizada e classificação de achados preparadas.
+- [x] Plano de síntese e devolutiva ao PO documentado.
+- [x] Impedimento sem participantes reais registrado.
+- [ ] Participantes recrutados e sessões realizadas.
+- [ ] Achados reais com evidências anonimizadas documentados.
+- [ ] Recomendações revisadas com PO e UX/UI.
 
-**Observação:** este documento representa o planejamento do teste. A execução e a validação com usuários reais continuam pendentes.
+## Relação com backlog
+Complementa #58 e #61. Os cenários abrangem conversa, comunicação operacional e ocorrência, sem duplicar mapa de jornadas ou checklist de acessibilidade.
