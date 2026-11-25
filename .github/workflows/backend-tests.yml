@@ -2,7 +2,7 @@ name: Backend tests
 on:
   pull_request:
   push:
-    branches: [test/suite-backend-completa]
+    branches: [main, test/suite-backend-completa]
 permissions:
   contents: read
 jobs:
@@ -29,4 +29,8 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --ignore-scripts
-      - run: node --test tests/horario.integration.test.js
+      - run: npm run postinstall
+        env:
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/test
+          DIRECT_URL: postgresql://test:test@127.0.0.1:5432/test
+      - run: node --test tests/horario.integration.test.js tests/startup.test.js
