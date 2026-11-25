@@ -12,6 +12,8 @@ import {
     autenticarToken
 } from '../middlewares/authMiddleware.js';
 
+import { verificarHorarioMensagens } from '../middlewares/horarioMensagens.js';
+
 const router = express.Router();
 
 // Somente usuarios autenticados
