@@ -1,4 +1,5 @@
 
+import { validarPaginacao } from '../utils/messagePagination.js';
 import {
     listarConversasPrivadas,
     listarMensagensPrivadas,
@@ -25,15 +26,12 @@ export async function listarConversas(req, res, next) {
 // Listar mensagens de uma conversa
 export async function listarMensagens(req, res, next) {
     try {
-        const mensagens = await listarMensagensPrivadas(
-            req.user,
-            req.params.id
-        );
+        const {mensagens,temMais,proximoCursor}=await listarMensagensPrivadas(req.user,req.params.id,validarPaginacao(req.query));
 
         return res.json({
             sucesso: true,
             total: mensagens.length,
-            mensagens
+            mensagens,temMais,proximoCursor
         });
     } catch (error) {
         return next(error);

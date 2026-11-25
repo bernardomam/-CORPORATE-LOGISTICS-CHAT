@@ -12,6 +12,8 @@ import {
     exigirTI
 } from '../middlewares/authMiddleware.js';
 
+import { consultarUsuario, atualizarUsuario, reativarUsuario, listarColegas } from '../services/userService.js';
+import { responderFalha } from '../utils/adminValidation.js';
 const router = Router();
 
 // ==========================================
@@ -23,6 +25,7 @@ const router = Router();
 // 2. Usuário ativo
 // 3. Empresa ativa
 // 4. Perfil IT_ADMIN
+router.get('/colegas',autenticarToken,async(req,res,next)=>{try{const usuarios=await listarColegas(req.user);return res.json({sucesso:true,total:usuarios.length,usuarios});}catch(e){return responderFalha(e,res,next);}});
 router.use(autenticarToken, exigirTI);
 
 // ==========================================
@@ -38,4 +41,7 @@ router.get('/', listar);
 // Desativar usuário
 router.patch('/:id/desativar', desativar);
 
+router.get('/:id',async(req,res,next)=>{try{return res.json({sucesso:true,usuario:await consultarUsuario(req.params.id,req.user)});}catch(e){return responderFalha(e,res,next);}});
+router.patch('/:id',async(req,res,next)=>{try{return res.json({sucesso:true,usuario:await atualizarUsuario(req.params.id,req.body,req.user)});}catch(e){return responderFalha(e,res,next);}});
+router.patch('/:id/reativar',async(req,res,next)=>{try{return res.json({sucesso:true,usuario:await reativarUsuario(req.params.id,req.user)});}catch(e){return responderFalha(e,res,next);}});
 export default router;

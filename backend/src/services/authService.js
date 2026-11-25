@@ -1,4 +1,7 @@
 import bcrypt from 'bcryptjs';
+import { sessionVersion } from '../utils/sessionVersion.js';
+import { chaveJWT as obterChaveJWT, senhaValida } from '../utils/authValidation.js';
+import { falha } from '../utils/adminValidation.js';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma.js';
 import {
@@ -26,7 +29,7 @@ export async function autenticarUsuario(email, password) {
     }
 
     // Limitar o tamanho das credenciais.
-    if (email.length > 254 || password.length > 1024) {
+    if (email.length > 254 || Buffer.byteLength(password, 'utf8') > 72) {
         throw new Error('CREDENCIAIS_INVALIDAS');
     }
 
@@ -91,21 +94,14 @@ export async function autenticarUsuario(email, password) {
     }
 
     // Verificar a configuração da chave JWT.
-    const chaveJWT = process.env.JWT_SECRET;
-
-    if (
-        typeof chaveJWT !== 'string' ||
-        chaveJWT.trim().length === 0
-    ) {
-        console.error('JWT_SECRET não configurado.');
-        throw new Error('JWT_SECRET_NAO_CONFIGURADO');
-    }
+    const chaveJWT = obterChaveJWT();
 
     // Criar token JWT com validade de 8 horas.
     const token = jwt.sign(
         {
             companyId: usuario.companyId,
-            role: usuario.role
+            role: usuario.role,
+            sv: sessionVersion(usuario.passwordHash,chaveJWT)
         },
         chaveJWT,
         {
@@ -129,4 +125,14 @@ export async function autenticarUsuario(email, password) {
             departmentId: usuario.departmentId
         }
     };
+}
+
+export async function alterarSenha(usuario, atual, nova){
+    if(!usuario?.id || !usuario?.companyId) throw falha(401,'Usuário não autenticado.');
+    if(typeof atual!=='string'||!atual||Buffer.byteLength(atual,'utf8')>72||!senhaValida(nova)||atual===nova) throw falha(400,'Informe uma senha atual e uma nova senha diferente, de 8 caracteres a 72 bytes.');
+    const registro=await prisma.user.findFirst({where:{id:usuario.id,companyId:usuario.companyId,status:'ACTIVE',company:{status:'ACTIVE'}},select:{passwordHash:true}});
+    if(!registro||!await bcrypt.compare(atual,registro.passwordHash)) throw falha(401,'Senha atual inválida.');
+    const passwordHash=await bcrypt.hash(nova,12);
+    const resultado=await prisma.user.updateMany({where:{id:usuario.id,companyId:usuario.companyId,status:'ACTIVE',passwordHash:registro.passwordHash,company:{status:'ACTIVE'}},data:{passwordHash}});
+    if(resultado.count!==1) throw falha(409,'Conta alterada durante a operação. Tente novamente.');
 }

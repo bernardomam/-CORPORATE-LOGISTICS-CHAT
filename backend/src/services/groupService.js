@@ -177,7 +177,7 @@ async function buscarGrupoComIntegrantes(tx, usuario, id) {
 // CRIAR GRUPO
 // ==========================================
 
-async function criarGrupoInterno(tx, usuario, dados = {}) {
+export async function criarGrupoInterno(tx, usuario, dados = {}) {
     validarAdministrador(usuario);
     validarDados(dados);
 
