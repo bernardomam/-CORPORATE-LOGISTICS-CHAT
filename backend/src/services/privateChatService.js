@@ -45,7 +45,7 @@ function validarHorario() {
 function validarIdentificador(valor, mensagem) {
     if (
         typeof valor !== 'string' ||
-        !valor.trim()
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor)
     ) {
         throw criarErro(mensagem);
     }
@@ -220,7 +220,8 @@ export async function listarConversasPrivadas(usuario) {
 
 export async function listarMensagensPrivadas(
     usuario,
-    conversaId
+    conversaId,
+    pagina={limit:50,before:null}
 ) {
     validarUsuario(usuario);
 
@@ -234,16 +235,16 @@ export async function listarMensagensPrivadas(
                     conversaId
                 );
 
-            return tx.message.findMany({
-                where: {
-                    privateChatId: conversa.id,
-                    companyId: usuario.companyId
-                },
-                include: incluirDadosMensagem(),
-                orderBy: {
-                    createdAt: 'asc'
-                }
-            });
+            const where={privateChatId:conversa.id,companyId:usuario.companyId};
+            if(pagina.before){
+                const cursor=await tx.message.findFirst({where:{...where,id:pagina.before},select:{id:true,createdAt:true}});
+                if(!cursor)throw criarErro('Cursor não encontrado nesta conversa.',404);
+                where.OR=[{createdAt:{lt:cursor.createdAt}},{createdAt:cursor.createdAt,id:{lt:cursor.id}}];
+            }
+            const rows=await tx.message.findMany({where,include:incluirDadosMensagem(),orderBy:[{createdAt:'desc'},{id:'desc'}],take:pagina.limit+1});
+            const temMais=rows.length>pagina.limit;
+            const mensagens=rows.slice(0,pagina.limit).reverse();
+            return {mensagens,temMais,proximoCursor:temMais?mensagens[0].id:null};
         }
     );
 }

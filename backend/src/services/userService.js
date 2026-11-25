@@ -1,5 +1,6 @@
 
 import bcrypt from 'bcryptjs';
+import { validarId, validarNome, validarCorpo, falha } from '../utils/adminValidation.js';
 import { executarComContextoRLS } from '../config/rlsContext.js';
 
 // ==========================================
@@ -76,7 +77,7 @@ export async function criarUsuario({
     if (
         nomeNormalizado.length > 150 ||
         emailNormalizado.length > 254 ||
-        password.length > 1024
+        Buffer.byteLength(password, 'utf8') > 72
     ) {
         throw new Error('CAMPOS_OBRIGATORIOS');
     }
@@ -186,6 +187,7 @@ export async function desativarUsuario(
     administrador
 ) {
     validarAdministrador(administrador);
+    validarId(id);
 
     if (
         typeof id !== 'string' ||
@@ -253,4 +255,42 @@ export async function desativarUsuario(
             return usuarioDesativado;
         }
     );
+}
+
+export async function consultarUsuario(id, administrador) {
+    validarAdministrador(administrador); validarId(id);
+    return executarComContextoRLS(administrador, async tx=>{
+        const usuario=await tx.user.findFirst({where:{id,companyId:administrador.companyId},select:camposUsuario});
+        if(!usuario) throw falha(404,'Usuário não encontrado.');
+        return usuario;
+    });
+}
+export async function atualizarUsuario(id, body, administrador) {
+    validarAdministrador(administrador); validarId(id);
+    validarCorpo(body,['name','email','departmentId','role']);
+    const data={};
+    if(Object.hasOwn(body,'name')) data.name=validarNome(body.name);
+    if(Object.hasOwn(body,'email')){
+        if(typeof body.email!=='string'||body.email.trim().length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim())) throw falha(400,'E-mail inválido.');
+        data.email=body.email.trim().toLowerCase();
+    }
+    if(Object.hasOwn(body,'role')){
+        if(!['USER','IT_ADMIN'].includes(body.role)) throw falha(400,'Perfil inválido.');
+        if(id===administrador.id && body.role!=='IT_ADMIN') throw falha(400,'Não é permitido remover o próprio perfil de TI.');
+        data.role=body.role;
+    }
+    if(Object.hasOwn(body,'departmentId')) data.departmentId=body.departmentId===null?null:validarId(body.departmentId);
+    return executarComContextoRLS(administrador,async tx=>{
+        if(data.departmentId && !await tx.department.findFirst({where:{id:data.departmentId,companyId:administrador.companyId},select:{id:true}})) throw falha(400,'Departamento inválido para esta empresa.');
+        return tx.user.update({where:{id,companyId:administrador.companyId},data,select:camposUsuario});
+    });
+}
+export async function reativarUsuario(id, administrador){
+    validarAdministrador(administrador); validarId(id);
+    return executarComContextoRLS(administrador,tx=>tx.user.update({where:{id,companyId:administrador.companyId},data:{status:'ACTIVE'},select:camposUsuario}));
+}
+
+export async function listarColegas(usuario){
+    if(!usuario?.id||!usuario?.companyId)throw falha(401,'Usuário não autenticado.');
+    return executarComContextoRLS(usuario,tx=>tx.user.findMany({where:{companyId:usuario.companyId,status:'ACTIVE',id:{not:usuario.id}},select:{id:true,name:true,departmentId:true,department:{select:{name:true}}},orderBy:[{name:'asc'},{id:'asc'}]}));
 }

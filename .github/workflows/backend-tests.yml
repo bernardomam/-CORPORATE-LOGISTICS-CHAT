@@ -1,0 +1,36 @@
+name: Backend tests
+on:
+  pull_request:
+  push:
+    branches: [main, test/suite-backend-completa]
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run test:unit
+      - run: find src -name '*.js' -not -path '*/generated/*' -print0 | xargs -0 -n1 node --check
+  integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts
+      - run: npm run postinstall
+        env:
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/test
+          DIRECT_URL: postgresql://test:test@127.0.0.1:5432/test
+      - run: node --test tests/horario.integration.test.js tests/startup.test.js

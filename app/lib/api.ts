@@ -1,5 +1,5 @@
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
 
 type OpcoesAPI = RequestInit & {
   token?: string | null;
@@ -15,7 +15,7 @@ export async function api(
 
   const { token, headers, ...resto } = opcoes;
 
-  const resposta = await fetch(`${API_URL}${caminho}`, {
+  const resposta = await fetch(`${API_URL}/${caminho.replace(/^\/+/, '')}`, {
     ...resto,
     headers: {
       "Content-Type": "application/json",
@@ -28,7 +28,7 @@ export async function api(
 
   if (!resposta.ok) {
     throw new Error(
-      dados?.mensagem || dados?.message || "Erro ao comunicar com o servidor."
+      dados?.mensagem || dados?.message || (resposta.status >= 500 ? "Servidor temporariamente indisponível. Tente novamente mais tarde." : "Erro ao comunicar com o servidor.")
     );
   }
 

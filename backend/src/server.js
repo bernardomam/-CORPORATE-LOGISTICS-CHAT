@@ -7,7 +7,9 @@ import { prisma } from './config/prisma.js';
 import companyRoutes from './routes/companyRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import departmentRoutes from './routes/departmentRoutes.js';
 import groupRoutes from './routes/groupRoutes.js';
+import groupRequestRoutes from './routes/groupRequestRoutes.js';
 import myGroupRoutes from './routes/myGroupRoutes.js';
 import groupMessageRoutes from './routes/groupMessageRoutes.js';
 import chatRequestRoutes from './routes/chatRequestRoutes.js';
@@ -47,7 +49,7 @@ app.disable('x-powered-by');
 app.use((req, res, next) => {
     const origem = req.headers.origin;
 
-    res.setHeader('Vary', 'Origin');
+    res.vary('Origin');
 
     if (origem && ORIGENS_PERMITIDAS.has(origem)) {
         res.setHeader('Access-Control-Allow-Origin', origem);
@@ -145,6 +147,10 @@ app.get('/', (req, res) => {
 // STATUS DA API E SUPABASE
 // ================================
 
+app.get('/api/health', (req, res) => {
+    return res.status(200).json({ sucesso: true, mensagem: 'API disponível' });
+});
+
 app.get('/api/status', async (req, res) => {
     try {
         await prisma.$queryRaw`SELECT 1`;
@@ -179,7 +185,9 @@ app.get('/api/status', async (req, res) => {
 app.use('/api/companies', companyRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/departments', departmentRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/group-requests', groupRequestRoutes);
 app.use('/api/my-groups', myGroupRoutes);
 app.use('/api/group-messages', groupMessageRoutes);
 app.use('/api/chat-requests', chatRequestRoutes);
@@ -193,7 +201,7 @@ app.use((req, res) => {
     return res.status(404).json({
         sucesso: false,
         mensagem: 'Rota não encontrada.',
-        caminho: req.originalUrl
+        caminho: req.path
     });
 });
 

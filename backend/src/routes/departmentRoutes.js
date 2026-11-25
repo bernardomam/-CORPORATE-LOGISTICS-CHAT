@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { autenticarToken, exigirTI } from '../middlewares/authMiddleware.js';
+import { listarDepartamentos, consultarDepartamento, criarDepartamento, atualizarDepartamento } from '../services/departmentService.js';
+import { responderFalha } from '../utils/adminValidation.js';
+const router=Router();
+router.use(autenticarToken,exigirTI);
+router.get('/',async(req,res,next)=>{try{const departamentos=await listarDepartamentos(req.user);return res.json({sucesso:true,total:departamentos.length,departamentos});}catch(e){return responderFalha(e,res,next);}});
+router.get('/:id',async(req,res,next)=>{try{return res.json({sucesso:true,departamento:await consultarDepartamento(req.user,req.params.id)});}catch(e){return responderFalha(e,res,next);}});
+router.post('/',async(req,res,next)=>{try{return res.status(201).json({sucesso:true,departamento:await criarDepartamento(req.user,req.body)});}catch(e){return responderFalha(e,res,next);}});
+router.patch('/:id',async(req,res,next)=>{try{return res.json({sucesso:true,departamento:await atualizarDepartamento(req.user,req.params.id,req.body)});}catch(e){return responderFalha(e,res,next);}});
+export default router;

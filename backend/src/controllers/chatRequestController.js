@@ -18,6 +18,7 @@ function responderErro(res, status, mensagem) {
 }
 
 function tratarErro(res, error, operacao) {
+    if(error?.code==='P2002')return responderErro(res,409,'Solicitação ou conversa duplicada.');
     if (
         Number.isInteger(error?.status) &&
         error.status >= 400 &&

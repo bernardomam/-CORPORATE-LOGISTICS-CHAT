@@ -1,5 +1,7 @@
 
 import jwt from 'jsonwebtoken';
+import { sessionVersion } from '../utils/sessionVersion.js';
+import { chaveJWT as obterChaveJWT, claimsValidos } from '../utils/authValidation.js';
 import { prisma } from '../config/prisma.js';
 
 // ==========================================
@@ -39,22 +41,7 @@ export async function autenticarToken(req, res, next) {
         );
 
         // Exigir uma chave JWT configurada.
-        const chaveJWT = process.env.JWT_SECRET;
-
-        if (
-            typeof chaveJWT !== 'string' ||
-            chaveJWT.trim().length === 0
-        ) {
-            console.error(
-                'JWT_SECRET não configurado.'
-            );
-
-            return responderErro(
-                res,
-                500,
-                'Configuração de autenticação incompleta.'
-            );
-        }
+        const chaveJWT = obterChaveJWT();
 
         // Verificar assinatura e expiração.
         // Aceitar somente o algoritmo HS256.
@@ -62,18 +49,12 @@ export async function autenticarToken(req, res, next) {
             token,
             chaveJWT,
             {
-                algorithms: ['HS256']
+                algorithms: ['HS256'], maxAge: '8h'
             }
         );
 
         // Validar o identificador do usuário no token.
-        if (
-            !dadosToken ||
-            typeof dadosToken !== 'object' ||
-            Array.isArray(dadosToken) ||
-            typeof dadosToken.sub !== 'string' ||
-            !dadosToken.sub.trim()
-        ) {
+        if (!claimsValidos(dadosToken)) {
             return responderErro(
                 res,
                 401,
@@ -105,6 +86,7 @@ export async function autenticarToken(req, res, next) {
                 id: true,
                 name: true,
                 email: true,
+                passwordHash: true,
                 role: true,
                 status: true,
                 companyId: true,
@@ -129,6 +111,8 @@ export async function autenticarToken(req, res, next) {
                 'Usuário inválido ou desativado.'
             );
         }
+
+        if (dadosToken.sv !== sessionVersion(usuario.passwordHash,chaveJWT)) return responderErro(res,401,'Sessão expirada. Faça login novamente.');
 
         // Verificar se a empresa existe e está ativa.
         if (
@@ -181,7 +165,7 @@ export async function autenticarToken(req, res, next) {
 
         console.error(
             'Erro interno na autenticação:',
-            error
+            error?.code || error?.name
         );
 
         return responderErro(
