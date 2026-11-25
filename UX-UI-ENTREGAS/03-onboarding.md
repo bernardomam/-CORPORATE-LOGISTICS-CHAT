@@ -1,127 +1,245 @@
-# Onboarding e primeiro acesso de colaboradores
+# Issue #71 — Onboarding e primeiro acesso de colaboradores
 
-## 1. Objetivo
+**Status:** Especificação de UX/UI concluída; fluxo e telas descritos para prototipação e implementação.  
+**Objetivo:** conduzir o colaborador do convite ou login até compreender seu vínculo organizacional e localizar suas conversas, sem criar barreiras desnecessárias.
 
-Definir uma experiência simples e clara para que novos colaboradores consigam acessar o sistema pela primeira vez, compreender como utilizá-lo e chegar à área principal do chat.
+## 1. Princípios da experiência
 
-O processo deve reduzir dúvidas, evitar erros de acesso e orientar o usuário em cada etapa.
+- O usuário deve saber em que etapa está e qual é a próxima ação.
+- Solicitar apenas dados necessários para autenticação e identificação.
+- Não permitir que o usuário altere por conta própria empresa, unidade ou permissões atribuídas administrativamente.
+- Explicar erros e oferecer recuperação.
+- A orientação inicial deve ser curta, contextual e dispensável.
+- O onboarding não deve reaparecer a cada login depois de concluído, salvo se o usuário solicitar ajuda.
 
-## 2. Fluxo proposto de primeiro acesso
+## 2. Arquitetura do fluxo
 
-### Etapa 1 — Recebimento do convite
+O produto terá duas entradas:
 
-O colaborador recebe um convite para acessar a plataforma.
+1. **Primeiro acesso por convite:** convite recebido → validação → autenticação ou criação/ativação de acesso conforme mecanismo existente → confirmação do vínculo → boas-vindas → orientação inicial → conversas.
+2. **Acesso de usuário recorrente:** login → autenticação → conversas. Não exibir novamente o onboarding concluído.
 
-A tela ou mensagem deve apresentar:
-- Nome do produto.
-- Informação de que o usuário foi convidado.
-- Identificação da organização, quando disponível.
-- Botão ou link para aceitar o convite.
-- Orientação sobre o que fazer caso não tenha solicitado o acesso.
+O convite não concede permissões além das já associadas à conta e à organização. O usuário não escolhe seu próprio papel ou nível de acesso.
 
-### Etapa 2 — Validação do convite
+### Diagrama do fluxo
 
-Ao acessar o link, o sistema deve verificar a validade do convite.
+```mermaid
+flowchart TD
+  A[Abre link do convite] --> B{Convite válido?}
+  B -- Não --> C[Exibir estado do convite]
+  C --> D[Solicitar novo convite ou ir para login]
+  B -- Sim --> E{Já possui acesso?}
+  E -- Sim --> F[Entrar na conta]
+  E -- Não --> G[Concluir ativação conforme autenticação disponível]
+  F --> H[Confirmar vínculo organizacional]
+  G --> H
+  H --> I{Vínculo confirmado?}
+  I -- Não --> J[Orientar contato com responsável]
+  I -- Sim --> K[Boas-vindas]
+  K --> L[Orientação inicial opcional]
+  L --> M[Lista de conversas]
+  N[Usuário recorrente] --> O[Login]
+  O --> M
+```
 
-Estados que a interface deve contemplar:
+## 3. Telas do fluxo — especificação de interface
 
-**Convite válido**
-- Exibir uma mensagem informando que o convite está válido.
-- Orientar o usuário a continuar o cadastro ou primeiro acesso.
+### Tela 01 — Convite recebido
 
-**Convite expirado**
-- Informar que o convite não está mais válido.
-- Orientar o usuário a solicitar um novo convite ao responsável.
+**Objetivo:** explicar por que a pessoa está acessando a plataforma e permitir continuar.
 
-**Convite já utilizado**
-- Informar que o convite já foi utilizado.
-- Orientar o usuário a tentar entrar na conta ou procurar o responsável pelo acesso.
+**Conteúdo**
+- Título: “Você foi convidado para o CallZUP”
+- Texto: “Seu acesso está associado à organização {nome_organizacao}. Continue para entrar na plataforma.”
+- Informação complementar: “Se você não esperava este convite, não continue e procure o responsável pelo seu acesso.”
+- Ação primária: “Aceitar convite”
+- Ação secundária: “Já tenho uma conta”
 
-**Convite inválido**
-- Informar que não foi possível validar o convite.
-- Orientar o usuário a conferir o link ou solicitar um novo convite.
+**Comportamento**
+- Exibir o nome da organização apenas quando vier do convite validado.
+- Não revelar informações de equipe, conversas ou outros colaboradores antes da autenticação.
+- Link “Já tenho uma conta” direciona para login preservando o contexto do convite, se tecnicamente suportado.
 
-### Etapa 3 — Identificação do colaborador
+### Tela 02 — Validar convite
 
-O usuário deve seguir o método de autenticação definido pelo projeto.
+A validação ocorre antes de mostrar dados privados.
 
-A interface deve:
-- Apresentar os campos necessários de forma clara.
-- Identificar os campos obrigatórios.
-- Informar erros de preenchimento.
-- Orientar a correção dos dados.
-- Evitar solicitar informações desnecessárias.
+| Estado | Título | Mensagem | Ação |
+|---|---|---|---|
+| Validando | Verificando seu convite… | Estamos conferindo se o link ainda pode ser utilizado. | Indicador de progresso |
+| Válido | Convite confirmado | Seu convite está válido. Continue para acessar o CallZUP. | Continuar |
+| Expirado | Este convite expirou | Peça ao responsável pela sua equipe que envie um novo convite. | Voltar ao login |
+| Já utilizado | Este convite já foi utilizado | Entre com a conta associada a este convite. | Fazer login |
+| Inválido | Não foi possível validar o convite | Confira se o link está completo ou solicite um novo convite ao responsável. | Voltar |
+| Revogado | Este convite não está mais ativo | Peça ao responsável pelo seu acesso que verifique o convite. | Voltar ao login |
+| Falha temporária | Não foi possível verificar agora | Tente novamente em instantes. | Tentar novamente |
 
-Os campos e métodos definitivos dependem da validação com o Product Owner e o Tech Lead.
+Não distinguir causas internas sensíveis quando isso puder facilitar enumeração de contas. A tela não deve exibir token ou identificador secreto do convite.
 
-### Etapa 4 — Vínculo com a organização
+### Tela 03 — Autenticação / ativação
 
-Após a identificação, o sistema deve apresentar ou confirmar o vínculo do colaborador com a organização correspondente ao convite.
+**Objetivo:** encaminhar o usuário ao mecanismo de autenticação já adotado pelo produto.
 
-A interface deve deixar claro:
-- Qual organização está associada ao acesso.
-- Se o vínculo foi confirmado.
-- O que fazer caso a organização esteja incorreta ou não apareça.
+**Regras de UX**
+- Reutilizar os componentes e padrões da experiência de autenticação principal (#39).
+- Não inventar um segundo mecanismo de senha ou cadastro paralelo.
+- Se o sistema exigir criação de credencial, mostrar requisitos antes do envio e orientar erros junto ao campo.
+- Se a conta já existir, oferecer login em vez de tentar criar uma conta duplicada.
+- Não pedir empresa, unidade, cargo ou permissões novamente se esses dados já vierem do vínculo administrativo.
 
-### Etapa 5 — Primeiro acesso ao chat
+**Mensagens**
+- Campo obrigatório: “Preencha este campo para continuar.”
+- Credencial inválida: “Não foi possível entrar com esses dados. Confira as informações e tente novamente.”
+- Falha temporária: “Não foi possível concluir o acesso agora. Tente novamente.”
+- Recuperação: “Esqueceu sua senha?” (somente se esse recurso existir no fluxo de autenticação).
 
-Após a conclusão do processo, o colaborador deve chegar à área principal do sistema.
+### Tela 04 — Confirmação do vínculo organizacional
 
-A experiência inicial deve apresentar:
-- Uma mensagem de boas-vindas.
-- Uma orientação breve sobre a função principal do chat.
-- Indicação de como localizar ou iniciar uma conversa, conforme as funcionalidades disponíveis.
-- Acesso fácil às opções principais da plataforma.
+**Objetivo:** dar transparência sobre o contexto de trabalho associado ao acesso.
 
-## 3. Estados que precisam ser projetados
+**Conteúdo**
+- Título: “Seu acesso está vinculado a”
+- Organização: “{nome_organizacao}”
+- Unidade: “{nome_unidade}” (somente se existir e estiver atribuída)
+- Equipe: “{nome_equipe}” (somente se existir e estiver atribuída)
+- Texto: “Essas informações foram definidas para seu acesso.”
+- Ação: “Continuar”
 
-| Estado | Comportamento esperado |
-|---|---|
-| Convite válido | Permitir continuar o primeiro acesso. |
-| Convite expirado | Explicar o problema e orientar a solicitação de novo convite. |
-| Convite utilizado | Orientar a tentativa de login. |
-| Convite inválido | Informar que não foi possível validar o link. |
-| Dados incorretos | Destacar o campo e explicar como corrigir. |
-| Vínculo confirmado | Permitir seguir para o sistema. |
-| Vínculo não confirmado | Informar o problema e indicar o próximo passo. |
-| Primeiro acesso concluído | Apresentar a área principal do chat. |
+**Exceções**
+- Unidade ou equipe não atribuída: não exibir campo vazio; informar apenas a organização.
+- Vínculo incorreto: “Essas informações não parecem corretas? Procure o responsável pelo seu acesso.”
+- Vínculo não confirmado: “Não foi possível confirmar seu vínculo. Peça ao responsável pela organização que verifique seu acesso.”
+- Não oferecer edição de vínculo nessa etapa, a menos que exista fluxo administrativo autorizado.
 
-## 4. Diretrizes de UX/UI
+### Tela 05 — Boas-vindas
 
-- Manter o processo curto e fácil de entender.
-- Apresentar uma etapa por vez quando isso facilitar a compreensão.
-- Utilizar linguagem simples e objetiva.
-- Deixar claro o que o usuário precisa fazer em cada tela.
-- Apresentar mensagens de erro próximas ao problema.
-- Não depender apenas de cores para comunicar estados.
-- Garantir boa visualização em dispositivos móveis e desktops.
-- Manter consistência visual com as demais telas do produto.
+**Conteúdo**
+- Título: “Bem-vindo ao CallZUP”
+- Texto: “Use o CallZUP para acompanhar conversas e informações da sua operação em um só lugar.”
+- Ação primária: “Conhecer o ambiente”
+- Ação secundária: “Ir para conversas”
 
-## 5. Critérios de validação
+O usuário pode pular a apresentação e acessar diretamente as conversas.
 
-O fluxo será considerado preparado para validação quando:
+### Tela 06 — Orientação inicial
 
-- [ ] As etapas do primeiro acesso estiverem documentadas.
-- [ ] Os estados de convite estiverem especificados.
-- [ ] Os erros e orientações estiverem descritos.
-- [ ] O vínculo com a organização estiver contemplado.
-- [ ] A chegada ao chat estiver definida.
-- [ ] A experiência responsiva estiver considerada.
-- [ ] As regras de autenticação e convite forem confirmadas com o Product Owner e o Tech Lead.
+Apresentar no máximo três dicas curtas, em sequência ou como destaques sobre a interface:
 
-## 6. Dependências e pontos pendentes
+1. **Suas conversas:** “Acesse aqui as conversas das quais você participa.”
+2. **Mensagens:** “Abra uma conversa para acompanhar as mensagens e enviar atualizações.”
+3. **Busca:** “Use a busca para localizar conversas ou mensagens disponíveis para você.”
 
-Precisam de confirmação da equipe técnica e do Product Owner:
+A dica de busca só deve aparecer se a busca estiver implementada e disponível ao usuário.
 
-- Método de autenticação utilizado pelo sistema.
-- Dados exigidos no primeiro acesso.
-- Funcionamento e prazo de validade dos convites.
-- Regras para convites já utilizados ou inválidos.
-- Forma de associação do colaborador à organização.
-- Informações e funcionalidades disponíveis na primeira tela do chat.
+**Controles**
+- “Próxima dica”
+- “Voltar”
+- “Pular”
+- “Concluir”
 
-## 7. Resultado esperado
+Persistir a conclusão do onboarding para não repetir em acessos seguintes. Se não houver persistência disponível, não bloquear o acesso: permitir fechar a orientação.
 
-Uma especificação inicial do onboarding que sirva de referência para a criação das telas e para o desenvolvimento frontend, com os principais estados, orientações e exceções documentados.
+### Tela 07 — Primeiro acesso à lista de conversas
 
-A implementação e a validação final dependem da confirmação das regras do produto e da revisão com as equipes responsáveis.
+**Estado com conversas**
+- Título: “Suas conversas”
+- Texto auxiliar: “Acompanhe as conversas disponíveis para você.”
+- Abrir uma conversa leva à tela de mensagens.
+
+**Estado sem conversas**
+- Título: “Você ainda não participa de conversas”
+- Texto: “Quando uma conversa for disponibilizada para você, ela aparecerá aqui.”
+- Não exibir botão “Criar conversa” se o usuário não tiver essa permissão.
+
+## 4. Fluxo de usuário recorrente
+
+1. Usuário abre o CallZUP.
+2. Informa credenciais ou utiliza o método de autenticação existente.
+3. Sistema valida o acesso.
+4. Usuário é direcionado à lista de conversas.
+5. Se a sessão estiver expirada, mostrar orientação para entrar novamente.
+6. Não exibir convite, confirmação de organização ou tutorial já concluído novamente.
+
+## 5. Matriz de estados e recuperação
+
+| Cenário | Resposta da interface | Recuperação |
+|---|---|---|
+| Link incompleto | Não foi possível validar o convite | Solicitar novo link |
+| Convite expirado | Este convite expirou | Solicitar novo convite |
+| Convite revogado | Este convite não está mais ativo | Contatar responsável |
+| Convite já utilizado | Este convite já foi utilizado | Fazer login |
+| Conta já existente | Você já tem uma conta | Entrar na conta |
+| Falha de autenticação | Não foi possível entrar com esses dados | Corrigir e tentar novamente |
+| Vínculo ausente | Seu acesso ainda não está associado a uma organização | Contatar responsável |
+| Sem unidade/equipe atribuída | Exibir apenas os dados existentes | Continuar sem bloquear |
+| Sem conversas | Você ainda não participa de conversas | Aguardar disponibilização |
+| Sessão expirada | Sua sessão expirou por segurança | Entrar novamente |
+| Falha de rede | Sem conexão. Verifique sua rede e tente novamente. | Tentar novamente |
+
+## 6. Regras de permissão e privacidade
+
+- O convite identifica o contexto de entrada, mas não deve ser tratado como prova suficiente de autorização após seu uso.
+- A autorização deve ser verificada pelo sistema em cada recurso protegido.
+- O onboarding só apresenta informações que a conta autenticada pode visualizar.
+- Não mostrar nomes de equipes, unidades ou pessoas antes da autenticação.
+- Não permitir autoatribuição de papel, unidade ou equipe.
+- Não indicar que o usuário tem acesso a uma conversa antes de o sistema confirmar essa permissão.
+- Não revelar se um e-mail está cadastrado em mensagens públicas de erro; usar mensagens neutras quando necessário.
+- A opção de sair ou cancelar deve estar disponível sem apagar dados da conta.
+
+## 7. Adaptação responsiva
+
+### Desktop
+- Conteúdo centralizado em coluna de largura confortável.
+- Etapas e progresso visíveis sem ocupar a área principal.
+- Informações organizacionais agrupadas em um painel.
+- Ações primárias e secundárias claramente separadas.
+
+### Tablet
+- Layout em uma coluna quando a largura não comportar duas áreas.
+- Botões com área de toque adequada.
+- Evitar modais estreitos ou formulários com rolagem horizontal.
+
+### Celular
+- Uma única coluna.
+- Botão principal ocupando a largura disponível.
+- Texto e erros sem truncamento.
+- Campos com rótulos persistentes e teclado apropriado.
+- Ações secundárias acessíveis sem competir visualmente com a ação principal.
+- Não exigir hover para descobrir instruções ou ações.
+
+## 8. Acessibilidade
+
+- Ordem de foco acompanha a ordem visual e lógica.
+- Títulos identificam claramente cada etapa.
+- Erros são associados aos campos e anunciados por leitores de tela.
+- Indicadores de progresso têm rótulo textual.
+- Contraste, tamanho de texto e área de toque seguem os padrões de acessibilidade adotados pelo produto.
+- Nenhum estado é comunicado somente por cor.
+- O usuário pode avançar, voltar ou pular a apresentação sem depender de gesto complexo.
+
+## 9. Critérios de aceite da entrega UX/UI
+
+- [x] Fluxo de primeiro acesso por convite documentado.
+- [x] Caminho de login para usuário recorrente documentado.
+- [x] Estados de convite válido, expirado, utilizado, inválido e revogado especificados.
+- [x] Telas e conteúdo principal descritos em nível de wireframe textual.
+- [x] Vínculo organizacional contemplado sem permitir autoatribuição de permissões.
+- [x] Orientação inicial curta, opcional e dispensável definida.
+- [x] Estados vazios, falhas e caminhos de recuperação documentados.
+- [x] Regras de responsividade e acessibilidade registradas.
+- [x] Relação com autenticação (#39) e perfil (#40) explicitada.
+
+## 10. Diretrizes para implementação
+
+- Reutilizar autenticação, cadastro e perfil existentes; este documento não substitui as regras técnicas dessas funcionalidades.
+- O backend deve ser a fonte de verdade para validade do convite, vínculo e permissões.
+- Estados de convite devem ser apresentados com base em respostas explícitas do serviço.
+- O tutorial deve ser curto e sua conclusão persistida quando houver suporte.
+- Todas as telas devem prever carregamento, erro e tentativa novamente quando aplicável.
+- Não criar telas ou campos para funcionalidades que o produto não oferece.
+- Usar os textos padronizados no documento `02-microcopy.md`.
+
+## 11. Resultado
+
+Especificação de onboarding com fluxo principal, fluxos alternativos, wireframes textuais, conteúdo de interface, regras de permissão, recuperação de erros, responsividade e acessibilidade. O material está organizado para ser convertido em protótipo visual e orientar o frontend, respeitando os mecanismos de autenticação e autorização existentes no CallZUP.
