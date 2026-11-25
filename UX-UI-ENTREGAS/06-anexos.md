@@ -1,163 +1,180 @@
 # Experiência de anexos e compartilhamento de arquivos no chat
 
-## 1. Objetivo
+## 1. Objetivo e escopo
 
-Definir como os colaboradores podem selecionar, enviar, visualizar e compartilhar arquivos dentro das conversas do sistema.
+Definir uma experiência consistente para selecionar, revisar, enviar, consultar e baixar anexos em conversas do CallZUP. A proposta cobre o fluxo UX/UI e os estados necessários para que frontend e backend implementem o recurso com comportamento previsível.
 
-A experiência deve tornar o envio de arquivos simples, informar o andamento da operação e orientar o usuário quando ocorrer algum problema.
+**Importante:** esta entrega especifica a experiência. Não confirma que anexos fazem parte do MVP, nem define políticas técnicas que ainda dependem de Product Owner (PO), Tech Lead e segurança.
 
-## 2. Fluxo de envio de arquivos
+## 2. Princípios da experiência
 
-### Etapa 1 — Seleção
+1. **Clareza:** o usuário sempre sabe quais arquivos selecionou e em que estado cada um está.
+2. **Controle:** pode remover itens antes do envio e cancelar quando o serviço suportar.
+3. **Recuperação:** erros explicam o que aconteceu e oferecem um próximo passo.
+4. **Privacidade:** anexos herdam as permissões da conversa; não existe compartilhamento público implícito.
+5. **Resiliência:** falha em um arquivo não deve apagar o estado dos demais.
+6. **Acessibilidade:** ações e estados são compreensíveis sem depender apenas de cor ou ícones.
 
-O usuário deve encontrar uma ação clara para anexar arquivos na conversa.
+## 3. Fluxo principal
 
-A interface deve:
-- Apresentar um botão ou ícone de anexar.
-- Permitir selecionar os arquivos disponíveis no dispositivo.
-- Informar quando nenhum arquivo foi selecionado.
-- Permitir cancelar a seleção antes do envio.
+### 3.1 Abrir o seletor
+- A ação “Anexar arquivo” fica junto ao campo de mensagem e tem rótulo acessível.
+- O usuário pode selecionar um ou vários arquivos, conforme limite configurado.
+- Em desktop, considerar arrastar e soltar na área de composição; a alternativa pelo seletor permanece disponível.
+- Em dispositivos móveis, usar o seletor nativo do sistema.
+- Não iniciar upload apenas por selecionar ou arrastar.
 
-### Etapa 2 — Revisão antes do envio
+### 3.2 Revisar a fila
+Cada item da fila apresenta:
+- Nome completo (com truncamento visual sem perder o nome acessível).
+- Tipo/extensão e tamanho formatado, quando disponíveis.
+- Ícone ou miniatura apenas como reforço visual.
+- Estado individual: aguardando, validando, enviando, enviado, falhou ou cancelado.
+- Ação de remover antes do envio.
+- Mensagem específica quando a validação reprovar o arquivo.
 
-Antes de confirmar, apresentar uma lista dos arquivos selecionados com:
-- Nome do arquivo.
-- Formato ou extensão, quando disponível.
-- Tamanho, quando disponível.
-- Opção de remover o arquivo da seleção.
+O botão principal informa a ação, por exemplo “Enviar 3 arquivos”. Deve ficar desabilitado se a fila estiver vazia ou se todos os itens forem inválidos. Não bloquear itens válidos por falha isolada de outro arquivo, a menos que a API imponha envio atômico.
 
-A interface deve deixar claro qual ação confirma o envio.
+### 3.3 Validação anterior ao envio
+Validar, conforme configuração do produto:
+- Extensão e MIME type, sem confiar apenas no nome do arquivo.
+- Tamanho máximo por arquivo.
+- Quantidade máxima por envio.
+- Regras de autorização e disponibilidade do serviço.
 
-### Etapa 3 — Envio
+Os limites não são definidos nesta entrega. A interface deve receber os limites da configuração/serviço e apresentar o valor real ao usuário. Não inventar formatos, tamanhos ou quantidades.
 
-Durante o envio, apresentar:
-- Nome do arquivo.
-- Indicador de progresso, se disponível.
-- Estado de envio.
-- Possibilidade de cancelar, caso o sistema permita.
+### 3.4 Envio e progresso
+- Mostrar progresso individual quando o serviço fornecer percentual confiável.
+- Se não houver percentual, usar estado indeterminado e texto “Enviando…”, sem simular porcentagem.
+- Permitir cancelar quando a API oferecer cancelamento seguro.
+- Evitar duplicidade ao repetir uma ação; frontend deve bloquear duplo clique enquanto a solicitação estiver em andamento.
+- Em falha de conexão, manter metadados do item na fila para permitir nova tentativa, respeitando as regras de segurança e validade do arquivo.
+- Uma nova tentativa deve ser uma ação explícita.
 
-O usuário deve conseguir entender se o arquivo está sendo enviado ou se o processo foi concluído.
+### 3.5 Confirmação e histórico
+Após sucesso, o anexo aparece na conversa como item associado ao autor e ao horário do envio. Mostrar:
+- Nome e tipo do arquivo.
+- Tamanho, se disponibilizado.
+- Autor e data/hora, conforme padrão de mensagens.
+- Ações “Visualizar” e/ou “Baixar”, somente se suportadas e autorizadas.
 
-### Etapa 4 — Arquivo enviado
+A mensagem não deve expor URL assinada, caminho de armazenamento, identificadores internos ou metadados sensíveis.
 
-Após a conclusão, o arquivo deve aparecer na conversa associado à mensagem ou ao registro de envio.
+## 4. Estados e microcopy
 
-A interface deve permitir identificar:
-- Nome do arquivo.
-- Tipo de arquivo, quando possível.
-- Autor do envio, quando disponível.
-- Data e horário.
-- Ação para visualizar ou baixar, conforme as permissões do sistema.
+| Estado | Texto sugerido | Ação |
+|---|---|---|
+| Fila vazia | “Selecione um arquivo para anexar.” | Selecionar arquivo |
+| Aguardando | “Pronto para enviar” | Remover / Enviar |
+| Validando | “Verificando arquivo…” | Aguardar |
+| Enviando | “Enviando…” | Cancelar, se suportado |
+| Sucesso | “Arquivo enviado” | Visualizar / Baixar |
+| Falha | “Não foi possível enviar este arquivo.” | Tentar novamente |
+| Sem conexão | “Conexão instável. Verifique a internet e tente novamente.” | Tentar novamente |
+| Tipo não permitido | “Este tipo de arquivo não é permitido.” | Remover |
+| Acima do limite | “Este arquivo excede o tamanho máximo permitido.” | Remover |
+| Quantidade excedida | “Você atingiu o limite de arquivos por envio.” | Remover itens |
+| Cancelado | “Envio cancelado.” | Enviar novamente |
+| Indisponível | “Este arquivo não está disponível no momento.” | Tentar novamente / voltar |
+| Sem permissão | “Você não tem permissão para acessar este arquivo.” | Voltar à conversa |
+| Visualização não suportada | “A prévia não está disponível para este tipo de arquivo.” | Baixar, se autorizado |
 
-## 3. Estados de envio
+Mensagens devem ser associadas ao item correto e anunciadas por tecnologia assistiva quando o estado mudar. Evitar alertas genéricos que não indiquem qual arquivo falhou.
 
-### Aguardando envio
-O arquivo foi selecionado, mas ainda não começou a ser enviado.
+## 5. Visualização, download e compartilhamento
 
-### Enviando
-O sistema está realizando o envio. Apresentar um indicador de progresso quando essa informação estiver disponível.
+- A prévia é opcional e depende de suporte técnico para o formato.
+- Para tipos sem prévia, apresentar um cartão de arquivo e oferecer download se permitido.
+- Abrir prévia em painel/modal acessível, com título, botão de fechar e foco controlado.
+- Download deve usar endpoint autorizado; não disponibilizar link público permanente por padrão.
+- Compartilhamento significa disponibilizar o anexo aos participantes autorizados da conversa, não criar link externo automaticamente.
+- Se houver compartilhamento externo no futuro, exigir ação explícita, escopo, expiração e confirmação clara; fica fora do escopo desta proposta.
+- Ao perder acesso à conversa, o usuário também deve perder acesso aos anexos conforme a política de autorização.
 
-### Enviado
-O envio foi concluído com sucesso.
+## 6. Permissões, privacidade e segurança
 
-### Falha no envio
-Apresentar a mensagem:
+- Aplicar autorização no servidor para upload, leitura, prévia e download.
+- Validar conteúdo no servidor; extensão e MIME informados pelo cliente não são prova suficiente.
+- Considerar varredura antimalware, armazenamento privado, URLs temporárias e limites de requisição conforme arquitetura.
+- Não renderizar conteúdo ativo ou potencialmente perigoso diretamente na página sem isolamento adequado.
+- Não incluir nomes de arquivos ou conteúdo sensível em logs expostos ao usuário.
+- Não revelar a existência de arquivos a quem não tenha acesso à conversa.
+- Definir retenção, exclusão, auditoria e tratamento de arquivos órfãos com PO/Tech Lead/segurança.
+- Mensagens de erro não devem revelar detalhes internos da infraestrutura.
 
-"Não foi possível enviar o arquivo. Tente novamente."
+## 7. Responsividade
 
-Oferecer uma ação de nova tentativa, quando aplicável.
+### Desktop
+- Área de drop próxima ao compositor, sem cobrir a conversa.
+- Fila em lista compacta; progresso alinhado por item.
+- Prévia em painel lateral ou modal amplo, mantendo contexto da conversa.
 
-### Envio cancelado
-Informar que o envio foi cancelado e permitir iniciar novamente.
+### Tablet
+- Fila em uma coluna; alvos de toque confortáveis.
+- Prévia em painel ou modal adaptado à largura.
 
-## 4. Regras e limitações
+### Celular
+- Seletor nativo do dispositivo.
+- Fila em cartões empilhados, com ações claramente identificadas.
+- Ações primárias acessíveis sem rolagem horizontal.
+- Prévia em tela cheia; respeitar áreas seguras e teclado virtual.
+- Não depender de hover.
 
-Os formatos permitidos, o tamanho máximo dos arquivos e a quantidade de anexos por envio precisam ser definidos pelo Product Owner e pelo Tech Lead.
+## 8. Acessibilidade
 
-A interface deve:
-- Informar formatos não aceitos.
-- Explicar quando um arquivo ultrapassar o limite permitido.
-- Evitar iniciar envios que não atendam às regras do sistema.
-- Apresentar mensagens claras para cada restrição.
+- Botões com nomes acessíveis (“Remover relatório.pdf”, por exemplo).
+- Ordem de foco acompanha a ordem visual e permite operar toda a fila pelo teclado.
+- Progresso exposto semanticamente quando percentual existir; mudanças de estado anunciadas sem anúncios excessivos.
+- Contraste suficiente e estado não comunicado apenas por cor.
+- Área de arrastar e soltar tem alternativa por botão.
+- Erros associados ao item e descritos em linguagem simples.
+- Ao fechar prévia, devolver foco ao controle que a abriu.
 
-Não inventar limites ou formatos antes da confirmação técnica.
+## 9. Modelo de estados por arquivo
 
-## 5. Visualização e compartilhamento
+`queued → validating → ready → uploading → uploaded`
 
-A experiência deve considerar:
-- Visualização de arquivos compatíveis, se suportada.
-- Download de arquivos, conforme permissões.
-- Identificação do arquivo dentro do histórico da conversa.
-- Mensagens claras para arquivos indisponíveis.
-- Comportamento adequado para arquivos que não podem ser visualizados diretamente.
+Rotas alternativas:
+- `validating → rejected` (tipo/tamanho/regra)
+- `uploading → failed → uploading` (nova tentativa)
+- `uploading → canceled` (se cancelamento suportado)
+- `uploaded → unavailable` (arquivo removido, expirado ou sem acesso)
 
-O acesso aos anexos deve respeitar as permissões e regras de privacidade do produto.
+O estado final exibido deve refletir a resposta real do serviço. Não marcar como enviado antes da confirmação do servidor.
 
-## 6. Estados alternativos
+## 10. Proposta de MVP e evolução
 
-### Nenhum arquivo selecionado
-Não iniciar o envio e orientar o usuário a selecionar um arquivo.
+**MVP sugerido (sujeito à decisão do PO):**
+- Seleção de arquivo(s), fila de revisão e remoção.
+- Validação dos limites configurados.
+- Upload com estado de progresso ou estado indeterminado.
+- Sucesso/falha e nova tentativa.
+- Cartão no histórico e download autorizado.
+- Acessibilidade e layout responsivo.
 
-### Formato não permitido
-Exibir:
+**Evolução possível:**
+- Pré-visualização embutida para formatos selecionados.
+- Arrastar e soltar, se não couber no MVP.
+- Upload retomável para arquivos grandes.
+- Compartilhamento externo controlado, se houver necessidade e política definida.
 
-"Este tipo de arquivo não é permitido."
+A ordem final depende da decisão do PO e da capacidade da API.
 
-### Arquivo acima do limite
-Exibir:
+## 11. Critérios de aceite UX/UI
 
-"O arquivo ultrapassa o tamanho máximo permitido."
+- [x] Fluxo de seleção e revisão documentado.
+- [x] Fila permite compreender e remover itens antes do envio.
+- [x] Estados de validação, envio, sucesso, falha e cancelamento descritos.
+- [x] Limites e formatos permanecem decisões configuráveis, não inventadas.
+- [x] Prévia e download condicionados a suporte e permissão.
+- [x] Riscos de privacidade e segurança registrados.
+- [x] Responsividade e acessibilidade especificadas.
+- [x] Protótipo navegável de referência criado.
+- [ ] PO confirma se o recurso entra no MVP ou em fase posterior.
+- [ ] Tech Lead confirma limites, endpoints, cancelamento, retomada e formatos suportados.
+- [ ] Segurança/engenharia confirma políticas de validação, armazenamento e retenção.
 
-### Falha de conexão
-Informar que não foi possível concluir o envio por causa da conexão e oferecer nova tentativa, quando aplicável.
+## 12. Dependências e limitações desta entrega
 
-### Arquivo indisponível
-Exibir:
-
-"Este arquivo não está disponível no momento."
-
-### Carregamento de visualização
-Apresentar um indicador enquanto o arquivo é preparado para visualização.
-
-## 7. Privacidade e segurança
-
-- Respeitar as permissões de acesso às conversas.
-- Não expor arquivos a usuários sem autorização.
-- Evitar apresentar informações técnicas sensíveis.
-- Não exibir caminhos internos ou dados privados do armazenamento.
-- Seguir as regras de segurança definidas pela equipe técnica.
-
-## 8. Diretrizes de UX/UI
-
-- Manter a ação de anexar fácil de encontrar.
-- Exibir claramente o andamento do envio.
-- Diferenciar visualmente os estados do arquivo.
-- Permitir identificar facilmente o arquivo na conversa.
-- Utilizar mensagens de erro objetivas e orientativas.
-- Considerar telas menores e diferentes dispositivos.
-- Evitar que arquivos grandes prejudiquem a navegação da conversa.
-
-## 9. Critérios de validação
-
-- [ ] A seleção de arquivos está documentada.
-- [ ] A revisão antes do envio está especificada.
-- [ ] Os estados de envio, sucesso, falha e cancelamento estão contemplados.
-- [ ] Os formatos permitidos estão identificados como dependência de validação.
-- [ ] Os limites de tamanho e quantidade estão identificados como dependências.
-- [ ] A visualização e o download respeitam as permissões.
-- [ ] As mensagens de erro estão documentadas.
-- [ ] A experiência responsiva foi considerada.
-- [ ] A proposta de MVP e funcionalidades futuras foi discutida com a equipe.
-
-## 10. Dependências e pontos pendentes
-
-Precisam de confirmação:
-
-- Formatos de arquivo aceitos.
-- Tamanho máximo permitido.
-- Quantidade máxima de anexos por envio.
-- Possibilidade de cancelar e repetir envios.
-- Tipos de arquivo que poderão ser visualizados dentro do sistema.
-- Regras de download e compartilhamento.
-- Políticas de armazenamento e privacidade.
-
+O protótipo é demonstrativo: usa seleção local de arquivos e simula estados no navegador. Não envia arquivos ao backend, não persiste anexos, não implementa autorização, antivírus, armazenamento, prévia real ou download por endpoint. As decisões marcadas como pendentes precisam ser mapeadas às regras reais do produto antes da implementação.
