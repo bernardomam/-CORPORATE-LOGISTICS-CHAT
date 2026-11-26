@@ -1,3 +1,4 @@
+import { prisma } from '../config/prisma.js';
 
 import { Router } from 'express';
 import { login } from '../controllers/authController.js';
@@ -32,5 +33,12 @@ router.get('/me', autenticarToken, (req, res) => {
 router.patch('/password', autenticarToken, limitarAuth, async(req,res,next)=>{
     try{await alterarSenha(req.user,req.body?.currentPassword,req.body?.newPassword);return res.json({sucesso:true,mensagem:'Senha alterada com sucesso.'});}
     catch(e){return responderFalha(e,res,next);}
+});
+router.post('/logout', autenticarToken, async (req,res,next) => {
+    try {
+        await prisma.$executeRaw`UPDATE public."AuthSession" SET "revokedAt" = now() WHERE "id" = ${req.sessionId}::uuid AND "userId" = ${req.user.id}::uuid AND "revokedAt" IS NULL`;
+        res.set('Cache-Control','no-store');
+        return res.json({sucesso:true,mensagem:'Sessão encerrada.'});
+    } catch (error) { return next(error); }
 });
 export default router;
