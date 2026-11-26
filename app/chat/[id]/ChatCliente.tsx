@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { dentroDoHorario } from "../../lib/horario";
 import { useAuth } from "../../contextos/AuthContext";
@@ -29,6 +29,8 @@ type Msg = {
     url?: string;
   };
   hora: string;
+  dataChave: string;
+  dataRotulo: string;
   status?: Status;
   respostaA: string | null;
   reacoes: string[];
@@ -50,6 +52,56 @@ type MensagemBackend = {
 };
 
 const emojis = ["👍", "❤️", "😂", "😮", "😢", "👏"];
+
+const FUSO_HORARIO = "America/Sao_Paulo";
+
+function obterPartesData(data: Date) {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: FUSO_HORARIO,
+  }).formatToParts(data);
+
+  const ano = partes.find((parte) => parte.type === "year")?.value ?? "";
+  const mes = partes.find((parte) => parte.type === "month")?.value ?? "";
+  const dia = partes.find((parte) => parte.type === "day")?.value ?? "";
+
+  return { ano, mes, dia, chave: `${ano}-${mes}-${dia}` };
+}
+
+function obterRotuloData(data: Date) {
+  const partesData = obterPartesData(data);
+  const partesHoje = obterPartesData(new Date());
+
+  const hojeUTC = Date.UTC(
+    Number(partesHoje.ano),
+    Number(partesHoje.mes) - 1,
+    Number(partesHoje.dia)
+  );
+  const ontem = new Date(hojeUTC - 24 * 60 * 60 * 1000);
+  const partesOntem = {
+    ano: String(ontem.getUTCFullYear()),
+    mes: String(ontem.getUTCMonth() + 1).padStart(2, "0"),
+    dia: String(ontem.getUTCDate()).padStart(2, "0"),
+  };
+  const chaveOntem = `${partesOntem.ano}-${partesOntem.mes}-${partesOntem.dia}`;
+
+  let rotulo = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: FUSO_HORARIO,
+  }).format(data);
+
+  if (partesData.chave === partesHoje.chave) {
+    rotulo = "Hoje";
+  } else if (partesData.chave === chaveOntem) {
+    rotulo = "Ontem";
+  }
+
+  return { chave: partesData.chave, rotulo };
+}
 
 function Ticks({ status }: { status?: Status }) {
   if (!status) return null;
@@ -242,17 +294,25 @@ const somenteLeitura =
             mensagem.created_at ??
             mensagem.sentAt;
 
+          const dataConvertida = dataMensagem ? new Date(dataMensagem) : null;
+          const dadosData = dataConvertida
+            ? obterRotuloData(dataConvertida)
+            : { chave: "sem-data", rotulo: "Data não informada" };
+
           return {
             id: String(mensagem.id),
             minha: String(remetenteId) === String(usuario?.id),
             texto: mensagem.content ?? mensagem.text ?? "",
-            hora: dataMensagem
+            hora: dataConvertida
               ? new Intl.DateTimeFormat("pt-BR", {
                   hour: "2-digit",
                   minute: "2-digit",
-                  timeZone: "America/Sao_Paulo",
-                }).format(new Date(dataMensagem))
+                  hourCycle: "h23",
+                  timeZone: FUSO_HORARIO,
+                }).format(dataConvertida)
               : "--:--",
+            dataChave: dadosData.chave,
+            dataRotulo: dadosData.rotulo,
             respostaA: mensagem.replyToId
               ? String(mensagem.replyToId)
               : null,
@@ -587,14 +647,24 @@ const somenteLeitura =
             </p>
           )}
 
-          {msgs.map((m) => {
+          {msgs.map((m, indice) => {
             const mensagemRespondida = msgs.find(
               (mensagem) => mensagem.id === m.respostaA
             );
+            const mostrarData =
+              indice === 0 || msgs[indice - 1].dataChave !== m.dataChave;
 
             return (
-              <div
-                key={m.id}
+              <Fragment key={m.id}>
+                {mostrarData && (
+                  <div className="flex justify-center py-2">
+                    <span className="rounded-lg bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+                      {m.dataRotulo}
+                    </span>
+                  </div>
+                )}
+
+                <div
                 className={`flex w-full min-w-0 ${
                   m.minha ? "justify-end" : "justify-start"
                 }`}
@@ -714,7 +784,8 @@ const somenteLeitura =
                     </div>
                   )}
                 </div>
-              </div>
+                </div>
+              </Fragment>
             );
           })}
         </div>
