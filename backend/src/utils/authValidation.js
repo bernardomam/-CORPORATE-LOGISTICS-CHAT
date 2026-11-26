@@ -1,0 +1,3 @@
+export function senhaValida(password){return typeof password==='string' && password.length>=8 && Buffer.byteLength(password,'utf8')<=72;}
+export function chaveJWT(){const key=process.env.JWT_SECRET;if(typeof key!=='string'||Buffer.byteLength(key.trim(),'utf8')<32)throw Object.assign(new Error('JWT_SECRET_NAO_CONFIGURADO'),{status:500});return key;}
+export function claimsValidos(claims){return !!claims && typeof claims==='object' && typeof claims.sub==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(claims.sub) && Number.isInteger(claims.exp) && Number.isInteger(claims.iat) && claims.exp>claims.iat && claims.exp-claims.iat<=28800;}

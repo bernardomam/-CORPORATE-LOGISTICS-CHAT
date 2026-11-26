@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ChangeEvent } from "react";
 import { useAuth } from "../contextos/AuthContext";
 import BarraInferior from "../comp/BarraInferior";
@@ -125,7 +126,8 @@ function CartaoPerfil({
 }
 
 export default function PerfilPage() {
-  const { usuario, token } = useAuth();
+  const { usuario, token, sair } = useAuth();
+  const router = useRouter();
 
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [dadosPerfil, setDadosPerfil] = useState<DadosPerfil | null>(null);
@@ -255,6 +257,9 @@ export default function PerfilPage() {
         )}
       </div>
 
+      <div className="mx-auto max-w-2xl px-5 mt-6">
+        <button type="button" onClick={() => { sair(); router.replace("/login"); }} className="w-full rounded-xl bg-red-50 p-3 font-semibold text-red-700">Sair da conta</button>
+      </div>
       <BarraInferior ativo="Perfil" />
     </main>
   );

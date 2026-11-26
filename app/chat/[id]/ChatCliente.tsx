@@ -38,7 +38,9 @@ type Msg = {
 type MensagemBackend = {
   id: string;
   content?: string;
-  type?: "TEXT" | "FILE" | "IMAGE";
+  type?: string;
+  text?: string;
+  senderId?: string;
   userId?: string;
   sender?: { id?: string; name?: string; role?: "USER" | "IT_ADMIN" };
   createdAt?: string;
@@ -354,12 +356,21 @@ export default function ChatCliente({
             }
           }
 
+          let anexo: Msg["arquivo"];
+          if (mensagem.type === "FILE" || mensagem.type === "IMAGE") {
+            try {
+              const meta = JSON.parse(mensagem.content || "");
+              if (typeof meta.nome === "string" && typeof meta.size === "number") {
+                anexo = { nome: meta.nome, tamanho: (meta.size / 1024).toFixed(1) + " KB", tipo: mensagem.type === "FILE" ? "pdf" : "imagem" };
+              }
+            } catch {}
+          }
           return {
             arquivo: anexo,
             id: String(mensagem.id),
             minha: String(remetenteId) === String(usuario?.id),
-            texto: anexo ? "" : mensagem.content ?? "",
-            hora: dataValida
+            texto: anexo ? "" : mensagem.content ?? mensagem.text ?? "",
+            hora: dataMensagem
               ? new Intl.DateTimeFormat("pt-BR", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -549,151 +560,44 @@ export default function ChatCliente({
     }
   }
 
-  async function escolherArquivo(e: ChangeEvent<HTMLInputElement>) {
+  async function escolherArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0];
     e.target.value = "";
-
     if (!arquivo || somenteLeitura || enviando || !token) return;
-
-    if (!dentroDoHorario()) {
-      setAviso("Fora do horário de uso (8h às 18h). Não é possível enviar anexos.");
+    if (!["application/pdf", "image/jpeg"].includes(arquivo.type) || arquivo.size > 5 * 1024 * 1024 || !arquivo.size) {
+      setAviso("Selecione um PDF ou JPEG de até 5 MB.");
       return;
     }
-
-    if (!UUID_REGEX.test(id)) {
-      setAviso("Não foi possível identificar o UUID desta conversa.");
-      return;
-    }
-
-    if (arquivo.size <= 0 || arquivo.size > LIMITE_ANEXO_BYTES) {
-      setAviso("O arquivo deve ter conteúdo e tamanho máximo de 4 MiB.");
-      return;
-    }
-
-    if (arquivo.type !== "application/pdf" && arquivo.type !== "image/jpeg") {
-      setAviso("Formato não permitido. Selecione um arquivo PDF ou JPEG.");
-      return;
-    }
-
-    const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-
-    if (!base) {
-      setAviso("A API não está configurada.");
-      return;
-    }
-
     setEnviando(true);
-    setAviso("");
-    setConfirmacao("");
-
     try {
-      const kind = tipoConversa === "grupo" ? "grupo" : "privado";
-
-      const url = `${base}/api/attachments/${kind}/${encodeURIComponent(id)}?nome=${encodeURIComponent(arquivo.name)}`;
-
-      const resposta = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": arquivo.type,
-        },
-        body: arquivo,
-        cache: "no-store",
+      const base = process.env.NEXT_PUBLIC_API_URL;
+      if (!base) throw new Error("API não configurada.");
+      const rota = tipoConversa === "grupo" ? "grupo" : "privado";
+      const res = await fetch(base + "/api/attachments/" + rota + "/" + encodeURIComponent(id) + "?nome=" + encodeURIComponent(arquivo.name), {
+        method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": arquivo.type }, body: arquivo
       });
-
-      if (resposta.status !== 201) {
-        throw new Error(mensagemErroAnexo(resposta.status, "enviar"));
-      }
-
-      const resultado = (await resposta.json().catch(() => null)) as
-        | RespostaUploadAnexo
-        | null;
-
-      if (
-        !resultado ||
-        resultado.sucesso !== true ||
-        typeof resultado.id !== "string" ||
-        !UUID_REGEX.test(resultado.id)
-      ) {
-        throw new Error(
-          "O servidor confirmou o envio, mas retornou uma confirmação inválida."
-        );
-      }
-
-      const historicoAtualizado = await carregarMensagens();
-
-      if (!historicoAtualizado?.some((mensagem) => mensagem.id === resultado.id)) {
-        setAviso(
-          "O servidor recebeu o anexo, mas ele ainda não apareceu no histórico. Atualize a conversa em instantes."
-        );
-      } else {
-        setConfirmacao("Anexo enviado com sucesso.");
-      }
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.mensagem || "Falha ao enviar arquivo.");
+      await carregarMensagens();
     } catch (error) {
-      setConfirmacao("");
-
-      setAviso(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível enviar o anexo."
-      );
-    } finally {
-      setEnviando(false);
-    }
+      setAviso(error instanceof Error ? error.message : "Falha ao enviar arquivo.");
+    } finally { setEnviando(false); }
   }
 
   async function baixarArquivo(msg: Msg) {
-    if (!token || !msg.arquivo || enviando) return;
-
-    const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-
-    if (!base) {
-      setAviso("A API não está configurada.");
-      return;
-    }
-
+    if (!token || !msg.arquivo) return;
     try {
-      setAviso("");
-
-      const resposta = await fetch(
-        `${base}/api/attachments/${encodeURIComponent(msg.id)}`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        }
-      );
-
-      if (!resposta.ok) {
-        throw new Error(mensagemErroAnexo(resposta.status, "baixar"));
-      }
-
-      const blob = await resposta.blob();
-
-      const mimeEsperado =
-        msg.arquivo.tipo === "pdf" ? "application/pdf" : "image/jpeg";
-
-      if (blob.type && blob.type !== mimeEsperado) {
-        throw new Error("O servidor retornou um formato de arquivo inesperado.");
-      }
-
-      const url = URL.createObjectURL(blob);
+      const base = process.env.NEXT_PUBLIC_API_URL;
+      if (!base) throw new Error("API não configurada.");
+      const res = await fetch(base + "/api/attachments/" + encodeURIComponent(msg.id), { headers: { Authorization: "Bearer " + token }, cache: "no-store" });
+      if (!res.ok) throw new Error("Não foi possível acessar o arquivo.");
+      const url = URL.createObjectURL(await res.blob());
       const link = document.createElement("a");
-
       link.href = url;
       link.download = msg.arquivo.nome;
-
-      document.body.appendChild(link);
       link.click();
-      link.remove();
-
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
-      setAviso(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível baixar o anexo."
-      );
+      setAviso(error instanceof Error ? error.message : "Falha ao baixar arquivo.");
     }
   }
 
@@ -966,15 +870,11 @@ export default function ChatCliente({
             const mostrarData =
               indice === 0 || msgs[indice - 1].dataChave !== m.dataChave;
 
-            return (
-              <Fragment key={m.id}>
-                {mostrarData && (
-                  <div className="flex justify-center py-2">
-                    <span className="rounded-lg bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-                      {m.dataRotulo}
-                    </span>
-                  </div>
-                )}
+                    {m.arquivo && (
+                      <button type="button" onClick={() => void baixarArquivo(m)} className="flex min-w-0 items-center gap-2 text-left">
+                        <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white">
+                          {m.arquivo.tipo === "pdf" ? "PDF" : "JPEG"}
+                        </div>
 
                 <div
                   className={`flex w-full min-w-0 ${
@@ -994,12 +894,12 @@ export default function ChatCliente({
                           <p className="text-[11px] font-bold">
                             Respondendo mensagem
                           </p>
-
-                          <p className="truncate text-xs opacity-80">
-                            {textoDaMensagem(mensagemRespondida)}
+                          <p className="text-xs opacity-70">
+                            {m.arquivo.tamanho} · Baixar
                           </p>
                         </div>
-                      )}
+                      </button>
+                    )}
 
                       {m.texto && <p>{m.texto}</p>}
 
