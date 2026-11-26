@@ -1,3 +1,4 @@
+﻿
 import { autenticarUsuario } from '../services/authService.js';
 
 // ==========================================
@@ -6,8 +7,7 @@ import { autenticarUsuario } from '../services/authService.js';
 
 export async function login(req, res) {
     try {
-        // Evitar erro quando o corpo da requisição
-        // estiver ausente ou for inválido.
+        // Validar o corpo da requisição.
         const dados = req.body;
 
         if (
@@ -21,14 +21,29 @@ export async function login(req, res) {
             });
         }
 
-        const { email, password } = dados;
+        const { email } = dados;
+        const senha = dados.password ?? dados.senha;
 
-        // A validação das credenciais e a geração
-        // do JWT acontecem no serviço de autenticação.
+        // Validar credenciais e gerar o JWT.
         const resultado = await autenticarUsuario(
             email,
-            password
+            senha
         );
+
+        // ==========================================
+        // RATE LIMITER - DEVOLVER TENTATIVA VÁLIDA
+        // ==========================================
+
+        // Logins bem-sucedidos não devem consumir
+        // o limite de tentativas de autenticação.
+        try {
+            await req.devolverTentativaAuth?.();
+        } catch (error) {
+            console.error(
+                'AUTH_LIMIT_REFUND_FAILED',
+                error?.code
+            );
+        }
 
         // Evitar armazenamento do token em cache.
         res.set('Cache-Control', 'no-store');
@@ -43,9 +58,8 @@ export async function login(req, res) {
     } catch (error) {
         const codigo = error?.message;
 
-        // Não revelar se o e-mail existe,
-        // se o usuário foi desativado ou
-        // se a empresa está inativa.
+        // Não revelar informações sobre a existência
+        // ou a situação do usuário e da empresa.
         const errosDeCredenciais = new Set([
             'CREDENCIAIS_INVALIDAS',
             'USUARIO_INATIVO',
@@ -66,7 +80,7 @@ export async function login(req, res) {
             });
         }
 
-        // Preservar a regra de horário existente.
+        // Respeitar o horário de funcionamento.
         if (codigo === 'FORA_DO_HORARIO') {
             return res.status(403).json({
                 sucesso: false,
@@ -75,6 +89,7 @@ export async function login(req, res) {
             });
         }
 
+        // Verificar a configuração da autenticação.
         if (codigo === 'JWT_SECRET_NAO_CONFIGURADO') {
             return res.status(500).json({
                 sucesso: false,
@@ -82,8 +97,11 @@ export async function login(req, res) {
             });
         }
 
-        // Registrar erros inesperados somente no servidor.
-        console.error('Erro interno ao realizar login:', error);
+        // Registrar erros inesperados no servidor.
+        console.error(
+            'Erro interno ao realizar login:',
+            error
+        );
 
         return res.status(500).json({
             sucesso: false,

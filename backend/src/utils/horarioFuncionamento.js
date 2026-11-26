@@ -37,3 +37,13 @@ export function verificarAcessoHorario(req, res, next) {
     });
 }
 
+
+export function limiteSessao(data = new Date()) {
+    if (!verificarHorarioFuncionamento(data)) return 0;
+    const partes = new Intl.DateTimeFormat('en-GB', {
+        timeZone: FUSO_HORARIO, hour: '2-digit', minute: '2-digit',
+        second: '2-digit', hourCycle: 'h23'
+    }).formatToParts(data);
+    const n = tipo => Number(partes.find(p => p.type === tipo).value);
+    return Math.min(28800, (HORA_FIM - n('hour')) * 3600 - n('minute') * 60 - n('second'));
+}

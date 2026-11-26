@@ -1,8 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import { sessionVersion } from '../utils/sessionVersion.js';
+import { chaveJWT as obterChaveJWT, senhaValida } from '../utils/authValidation.js';
+import { falha, exigirAdministrador, validarId } from '../utils/adminValidation.js';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma.js';
 import {
-    verificarHorarioFuncionamento
+    verificarHorarioFuncionamento, limiteSessao
 } from '../utils/horarioFuncionamento.js';
 
 // ==========================================
@@ -26,7 +30,7 @@ export async function autenticarUsuario(email, password) {
     }
 
     // Limitar o tamanho das credenciais.
-    if (email.length > 254 || password.length > 1024) {
+    if (email.length > 254 || Buffer.byteLength(password, 'utf8') > 72) {
         throw new Error('CREDENCIAIS_INVALIDAS');
     }
 
@@ -91,29 +95,31 @@ export async function autenticarUsuario(email, password) {
     }
 
     // Verificar a configuração da chave JWT.
-    const chaveJWT = process.env.JWT_SECRET;
-
-    if (
-        typeof chaveJWT !== 'string' ||
-        chaveJWT.trim().length === 0
-    ) {
-        console.error('JWT_SECRET não configurado.');
-        throw new Error('JWT_SECRET_NAO_CONFIGURADO');
-    }
+    const chaveJWT = obterChaveJWT();
 
     // Criar token JWT com validade de 8 horas.
+    const agora = new Date();
+    const duracao = limiteSessao(agora);
+    if (!duracao) throw new Error('FORA_DO_HORARIO');
+    const sessionId = randomUUID();
     const token = jwt.sign(
         {
+            iat: Math.floor(agora.getTime()/1000),
+            jti: sessionId,
             companyId: usuario.companyId,
-            role: usuario.role
+            role: usuario.role,
+            sv: sessionVersion(usuario.passwordHash,chaveJWT)
         },
         chaveJWT,
         {
             algorithm: 'HS256',
             subject: usuario.id,
-            expiresIn: '8h'
+            expiresIn: duracao
         }
     );
+
+    const expiresAt = new Date(jwt.decode(token).exp * 1000);
+    await prisma.$executeRaw`INSERT INTO public."AuthSession" ("id", "userId", "expiresAt") VALUES (${sessionId}::uuid, ${usuario.id}::uuid, ${expiresAt})`;
 
     // Retornar token e dados públicos do usuário.
     // Nunca retornar passwordHash.
@@ -129,4 +135,28 @@ export async function autenticarUsuario(email, password) {
             departmentId: usuario.departmentId
         }
     };
+}
+
+export async function alterarSenha(usuario, atual, nova){
+    if(!usuario?.id || !usuario?.companyId) throw falha(401,'Usuário não autenticado.');
+    if(typeof atual!=='string'||!atual||Buffer.byteLength(atual,'utf8')>72||!senhaValida(nova)||atual===nova) throw falha(400,'Informe uma senha atual e uma nova senha diferente, de 8 caracteres a 72 bytes.');
+    const registro=await prisma.user.findFirst({where:{id:usuario.id,companyId:usuario.companyId,status:'ACTIVE',company:{status:'ACTIVE'}},select:{passwordHash:true}});
+    if(!registro||!await bcrypt.compare(atual,registro.passwordHash)) throw falha(401,'Senha atual inválida.');
+    const passwordHash=await bcrypt.hash(nova,12);
+    const resultado=await prisma.user.updateMany({where:{id:usuario.id,companyId:usuario.companyId,status:'ACTIVE',passwordHash:registro.passwordHash,company:{status:'ACTIVE'}},data:{passwordHash}});
+    if(resultado.count!==1) throw falha(409,'Conta alterada durante a operação. Tente novamente.');
+}
+
+export async function redefinirSenhaTI(admin, id, nova) {
+    exigirAdministrador(admin);
+    validarId(id);
+    if (!senhaValida(nova)) throw falha(400,'Senha deve ter de 8 caracteres a 72 bytes.');
+    const passwordHash = await bcrypt.hash(nova,12);
+    await prisma.$transaction(async tx => {
+        const ator = await tx.user.findFirst({where:{id:admin.id,companyId:admin.companyId,role:'IT_ADMIN',status:'ACTIVE',company:{status:'ACTIVE'}},select:{id:true}});
+        if (!ator) throw falha(403,'Acesso restrito à TI ativa.');
+        const resultado = await tx.user.updateMany({where:{id,companyId:admin.companyId,status:'ACTIVE',company:{status:'ACTIVE'}},data:{passwordHash}});
+        if (resultado.count !== 1) throw falha(404,'Funcionário ativo não encontrado.');
+        await tx.$executeRaw`UPDATE public."AuthSession" SET "revokedAt" = now() WHERE "userId" = ${id}::uuid AND "revokedAt" IS NULL`;
+    }, {isolationLevel:'Serializable'});
 }

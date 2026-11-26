@@ -1,0 +1,10 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {exigirAdministrador,validarId,validarNome,validarCorpo,responderFalha} from '../src/utils/adminValidation.js';
+test('nega usuário sem sessão',()=>assert.throws(()=>exigirAdministrador(null),{status:401}));
+test('nega funcionário',()=>assert.throws(()=>exigirAdministrador({id:'a',companyId:'b',role:'USER'}),{status:403}));
+test('aceita TI',()=>assert.doesNotThrow(()=>exigirAdministrador({id:'a',companyId:'b',role:'IT_ADMIN'})));
+test('valida UUID',()=>{assert.throws(()=>validarId('abc'),{status:400});assert.equal(validarId('00000000-0000-4000-8000-000000000001'),'00000000-0000-4000-8000-000000000001');});
+test('valida nome',()=>{assert.equal(validarNome(' TI '),'TI');assert.throws(()=>validarNome(' '),{status:400});assert.throws(()=>validarNome('a'.repeat(151)),{status:400});});
+test('rejeita companyId e corpo vazio',()=>{assert.throws(()=>validarCorpo({companyId:'x'},['name']),{status:400});assert.throws(()=>validarCorpo({},['name']),{status:400});assert.doesNotThrow(()=>validarCorpo({name:'TI'},['name']));});
+test('duplicidade e registro ausente',()=>{for(const [code,status] of [['P2002',409],['P2025',404]]){let actual;responderFalha({code},{status(n){actual=n;return this},json(b){assert.equal(b.sucesso,false)}},()=>assert.fail());assert.equal(actual,status);}});

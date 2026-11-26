@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS public."AuthSession" ("id" uuid PRIMARY KEY, "userId" uuid NOT NULL REFERENCES public."User"("id") ON DELETE CASCADE, "expiresAt" timestamptz NOT NULL, "revokedAt" timestamptz);
+CREATE INDEX IF NOT EXISTS "AuthSession_userId_idx" ON public."AuthSession"("userId");
+CREATE INDEX IF NOT EXISTS "AuthSession_expiresAt_idx" ON public."AuthSession"("expiresAt");
+ALTER TABLE public."AuthSession" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public."AuthSession" FROM PUBLIC, anon, authenticated;
+CREATE OR REPLACE FUNCTION public.callzup_pode_ver_grupo(p_group_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$ SELECT EXISTS (SELECT 1 FROM public."Group" g JOIN public."User" u ON u.id=public.callzup_usuario_atual() AND u."companyId"=g."companyId" AND u.status='ACTIVE' WHERE g.id=p_group_id AND g."companyId"=public.callzup_empresa_atual() AND (u.role='IT_ADMIN' OR EXISTS (SELECT 1 FROM public."GroupMember" gm WHERE gm."groupId"=g.id AND gm."userId"=u.id AND gm."leftAt" IS NULL))) $$;
+REVOKE ALL ON FUNCTION public.callzup_pode_ver_grupo(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.callzup_pode_ver_grupo(uuid) TO callzup_app;
+ALTER POLICY callzup_group_select ON public."Group" USING (public.callzup_pode_ver_grupo(id));
+ALTER POLICY callzup_group_member_select ON public."GroupMember" USING (public.callzup_pode_ver_grupo("groupId"));
+REVOKE ALL ON public."GroupRequest" FROM callzup_app,anon,authenticated,PUBLIC;

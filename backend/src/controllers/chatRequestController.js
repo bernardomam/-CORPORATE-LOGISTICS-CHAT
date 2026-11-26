@@ -1,10 +1,11 @@
-
 import {
     solicitarConversa,
     listarSolicitacoes,
     aprovarSolicitacao,
     rejeitarSolicitacao
 } from '../services/chatRequestService.js';
+
+import { notificarSolicitacao } from '../services/emailService.js';
 
 // ==========================================
 // RESPOSTAS DE ERRO
@@ -18,6 +19,14 @@ function responderErro(res, status, mensagem) {
 }
 
 function tratarErro(res, error, operacao) {
+    if (error?.code === 'P2002') {
+        return responderErro(
+            res,
+            409,
+            'Solicitação ou conversa duplicada.'
+        );
+    }
+
     if (
         Number.isInteger(error?.status) &&
         error.status >= 400 &&
@@ -55,6 +64,22 @@ export async function solicitar(req, res) {
             req.user,
             requestedUserId
         );
+
+        // Notificar somente depois de salvar a solicitação.
+        try {
+            await notificarSolicitacao({
+                ...solicitacao,
+                requester: {
+                    ...solicitacao.requester,
+                    email: req.user.email
+                }
+            }, req.user.companyId);
+
+        } catch (error) {
+            console.error('EMAIL_NOTIFICACAO_FALHOU', {
+                solicitacaoId: solicitacao.id
+            });
+        }
 
         return res.status(201).json({
             sucesso: true,

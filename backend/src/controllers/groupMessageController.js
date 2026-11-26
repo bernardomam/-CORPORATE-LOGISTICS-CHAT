@@ -1,4 +1,5 @@
 
+import { validarPaginacao } from '../utils/messagePagination.js';
 import {
     listarMensagensGrupo,
     enviarMensagemGrupo,
@@ -18,15 +19,12 @@ function tratarErro(error, next) {
 // Consultar histórico de mensagens
 export async function listarMensagens(req, res, next) {
     try {
-        const mensagens = await listarMensagensGrupo(
-            req.user,
-            req.params.id
-        );
+        const {mensagens,temMais,proximoCursor} = await listarMensagensGrupo(req.user,req.params.id,validarPaginacao(req.query));
 
         return res.json({
             sucesso: true,
             total: mensagens.length,
-            mensagens
+            mensagens, temMais, proximoCursor
         });
     } catch (error) {
         return tratarErro(error, next);

@@ -16,9 +16,20 @@ import {
     verificarHorarioMensagens
 } from '../middlewares/horarioMensagens.js';
 
+import { listarMeusGrupos } from '../services/myGroupService.js';
+
 const router = express.Router();
 
 router.use(autenticarToken);
+
+router.get('/', async (req, res, next) => {
+    try {
+        const grupos = await listarMeusGrupos(req.user);
+        return res.json({ sucesso: true, total: grupos.length, grupos });
+    } catch (error) {
+        return next(error);
+    }
+});
 
 // Consultar histórico de mensagens.
 router.get('/:id', listarMensagens);

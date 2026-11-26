@@ -1,66 +1,24 @@
+import { prisma } from '../config/prisma.js';
 
 import { Router } from 'express';
 import { login } from '../controllers/authController.js';
-import { autenticarToken } from '../middlewares/authMiddleware.js';
+import { autenticarToken, exigirTI } from '../middlewares/authMiddleware.js';
 
+import { alterarSenha } from '../services/authService.js';
+import { responderFalha } from '../utils/adminValidation.js';
+import { limitarAuth } from '../middlewares/distributedAuthLimit.js';
 const router = Router();
 
 // ==========================================
 // PROTEÇÃO CONTRA TENTATIVAS DE LOGIN
 // ==========================================
 
-const tentativasLogin = new Map();
-
-const JANELA_TEMPO = 15 * 60 * 1000;
-const MAX_TENTATIVAS = 10;
-
-function limitarTentativasLogin(req, res, next) {
-    const agora = Date.now();
-    const ip = req.ip || req.socket.remoteAddress || 'desconhecido';
-
-    // Limpar registros expirados.
-    for (const [chave, registro] of tentativasLogin.entries()) {
-        if (agora >= registro.expiraEm) {
-            tentativasLogin.delete(chave);
-        }
-    }
-
-    let registro = tentativasLogin.get(ip);
-
-    if (!registro) {
-        registro = {
-            tentativas: 0,
-            expiraEm: agora + JANELA_TEMPO
-        };
-
-        tentativasLogin.set(ip, registro);
-    }
-
-    if (registro.tentativas >= MAX_TENTATIVAS) {
-        const segundosRestantes = Math.ceil(
-            (registro.expiraEm - agora) / 1000
-        );
-
-        res.set('Retry-After', String(segundosRestantes));
-
-        return res.status(429).json({
-            sucesso: false,
-            mensagem:
-                'Muitas tentativas de login. Aguarde antes de tentar novamente.'
-        });
-    }
-
-    registro.tentativas += 1;
-
-    return next();
-}
-
 // ==========================================
 // ROTAS DE AUTENTICAÇÃO
 // ==========================================
 
 // Realizar login com limite de tentativas.
-router.post('/login', limitarTentativasLogin, login);
+router.post('/login', limitarAuth, login);
 
 // Consultar os dados do usuário autenticado.
 router.get('/me', autenticarToken, (req, res) => {
@@ -72,4 +30,15 @@ router.get('/me', autenticarToken, (req, res) => {
     });
 });
 
+router.patch('/password', autenticarToken, exigirTI, limitarAuth, async(req,res,next)=>{
+    try{await alterarSenha(req.user,req.body?.currentPassword,req.body?.newPassword);return res.json({sucesso:true,mensagem:'Senha alterada com sucesso.'});}
+    catch(e){return responderFalha(e,res,next);}
+});
+router.post('/logout', autenticarToken, async (req,res,next) => {
+    try {
+        await prisma.$executeRaw`UPDATE public."AuthSession" SET "revokedAt" = now() WHERE "id" = ${req.sessionId}::uuid AND "userId" = ${req.user.id}::uuid AND "revokedAt" IS NULL`;
+        res.set('Cache-Control','no-store');
+        return res.json({sucesso:true,mensagem:'Sessão encerrada.'});
+    } catch (error) { return next(error); }
+});
 export default router;
