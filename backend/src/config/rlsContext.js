@@ -1,8 +1,10 @@
-﻿
+
 import { prisma } from './prisma.js';
 import { criarPrismaRls } from './prismaRls.js';
 
 let prismaRls = null;
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function obterClientePrisma() {
   if (process.env.USAR_CONEXAO_RLS !== 'true') {
@@ -20,9 +22,9 @@ export async function executarComContextoRLS(usuario, operacao) {
   if (
     !usuario ||
     typeof usuario.id !== 'string' ||
-    !usuario.id.trim() ||
+    !UUID_REGEX.test(usuario.id) ||
     typeof usuario.companyId !== 'string' ||
-    !usuario.companyId.trim()
+    !UUID_REGEX.test(usuario.companyId)
   ) {
     throw new Error('Usuário ou empresa inválidos para contexto RLS.');
   }
@@ -67,6 +69,23 @@ export async function executarComContextoRLS(usuario, operacao) {
           set_config('app.user_id', ${usuario.id}, true),
           set_config('app.company_id', ${usuario.companyId}, true)
       `;
+
+      const [contexto] = await tx.$queryRaw`
+        SELECT EXISTS (
+          SELECT 1
+          FROM public."User" u
+          JOIN public."Company" c
+            ON c.id = u."companyId"
+          WHERE u.id = ${usuario.id}::uuid
+            AND u."companyId" = ${usuario.companyId}::uuid
+            AND u.status = 'ACTIVE'
+            AND c.status = 'ACTIVE'
+        ) AS autorizado
+      `;
+
+      if (!contexto?.autorizado) {
+        throw new Error('Contexto RLS nao autorizado.');
+      }
 
       return operacao(tx);
     },
