@@ -870,11 +870,15 @@ export default function ChatCliente({
             const mostrarData =
               indice === 0 || msgs[indice - 1].dataChave !== m.dataChave;
 
-                    {m.arquivo && (
-                      <button type="button" onClick={() => void baixarArquivo(m)} className="flex min-w-0 items-center gap-2 text-left">
-                        <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white">
-                          {m.arquivo.tipo === "pdf" ? "PDF" : "JPEG"}
-                        </div>
+            return (
+              <Fragment key={m.id}>
+                {mostrarData && (
+                  <div className="flex justify-center py-2">
+                    <span className="rounded-lg bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+                      {m.dataRotulo}
+                    </span>
+                  </div>
+                )}
 
                 <div
                   className={`flex w-full min-w-0 ${
@@ -894,12 +898,12 @@ export default function ChatCliente({
                           <p className="text-[11px] font-bold">
                             Respondendo mensagem
                           </p>
-                          <p className="text-xs opacity-70">
-                            {m.arquivo.tamanho} · Baixar
+
+                          <p className="truncate text-xs opacity-80">
+                            {textoDaMensagem(mensagemRespondida)}
                           </p>
                         </div>
-                      </button>
-                    )}
+                      )}
 
                       {m.texto && <p>{m.texto}</p>}
 
