@@ -91,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       sessionStorage.removeItem(CHAVE_SESSAO);
       sessionStorage.removeItem(CHAVE_TOKEN);
+      sessionStorage.removeItem("callzup_login_pendente");
     } catch {}
   }
 
