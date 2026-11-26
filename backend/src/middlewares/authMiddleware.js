@@ -127,6 +127,11 @@ export async function autenticarToken(req, res, next) {
             );
         }
 
+        if (typeof dadosToken.jti !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dadosToken.jti)) return responderErro(res,401,'Sessão inválida. Faça login novamente.');
+        const sessoes = await prisma.$queryRaw`SELECT "id" FROM public."AuthSession" WHERE "id" = ${dadosToken.jti}::uuid AND "userId" = ${usuario.id}::uuid AND "revokedAt" IS NULL AND "expiresAt" > now()`;
+        if (sessoes.length !== 1) return responderErro(res,401,'Sessão encerrada ou expirada.');
+        req.sessionId = dadosToken.jti;
+
         // ==========================================
         // CONTEXTO DO USUÁRIO AUTENTICADO
         // ==========================================
