@@ -4,7 +4,7 @@ Contrato técnico do backend local, com 48 operações HTTP ativas. Base local c
 
 ## Arquitetura e autenticação
 
-Express → rotas → middlewares → controllers → services → Prisma → Supabase. O JWT HS256 dura até 8 horas, exige sub UUID, iat, exp e versão de sessão vinculada à senha. As sessões são registradas no banco em AuthSession. O logout revoga a sessão atual. Alterar a senha invalida tokens anteriores; tokens emitidos antes desta atualização exigem novo login. O limite de autenticação é de 10 tentativas por janela de 15 minutos, persistido no PostgreSQL após migração. Envie `Authorization: Bearer TOKEN` nas rotas protegidas. A empresa e o perfil são obtidos da sessão validada no servidor. Login usa `senha`; cadastro usa `password`. Login, envio de mensagens e operações de solicitação de conversa são permitidos das 08:00 às 18:00 (exclusive), horário de Brasília. Histórico e reações não têm essa restrição.
+Express → rotas → middlewares → controllers → services → Prisma → Supabase. O JWT HS256 dura até 8 horas, exige sub UUID, iat, exp e versão de sessão vinculada à senha. As sessões são registradas no banco em AuthSession. O logout revoga a sessão atual. Alterar a senha invalida tokens anteriores; tokens emitidos antes desta atualização exigem novo login. O limite de autenticação é de 10 tentativas por janela de 15 minutos, persistido no PostgreSQL após migração. Envie `Authorization: Bearer TOKEN` nas rotas protegidas. A empresa e o perfil são obtidos da sessão validada no servidor. Login usa `senha`; cadastro usa `password`. Login, envio de mensagens e operações de solicitação de conversa são permitidos das 08:00 às 18:00 (exclusive), horário de Brasília. Todas as rotas autenticadas também exigem horário de funcionamento. Sessões expiram no máximo às 18h.
 
 ## Configuração
 
@@ -30,7 +30,7 @@ Erros possíveis: 500 Erro interno; 503 Banco indisponível.
 
 ### POST /api/auth/login
 
-Entrar. Rota pública. Disponível das 08:00 às 18:00 (exclusivo), America/Sao_Paulo. JWT HS256 válido por 8 horas; envie Authorization: Bearer TOKEN nas rotas protegidas.
+Entrar. Rota pública. Disponível das 08:00 às 18:00 (exclusivo), America/Sao_Paulo. JWT HS256 válido por até 8 horas, limitado às 18h; envie Authorization: Bearer TOKEN nas rotas protegidas.
 
 Campos obrigatórios: `email`, `senha`. Campos aceitos: `email` (email), `senha` (password).
 
@@ -451,6 +451,8 @@ Pública. Verifica disponibilidade HTTP sem consultar o banco. 200: `sucesso`, `
 
 ### PATCH /api/auth/password
 
+Restrito à TI.
+
 JWT. Corpo: `{"currentPassword":"senha-atual","newPassword":"nova-senha-exemplo"}`. Nova senha diferente, mínimo 8 caracteres e máximo 72 bytes UTF-8. 200: `sucesso`, `mensagem`. 400, 401, 409, 429 ou 500. Após sucesso, fazer novo login.
 
 ### GET /api/users/colegas
@@ -590,3 +592,7 @@ A migração da PR 117 é requisito para autenticação distribuída, solicitaç
 ## Manutenção
 
 Este é o documento central. Atualize-o junto com qualquer alteração de rota, corpo, status ou permissão. Execute o teste de cobertura de rotas em backend com node --test tests/api-docs.test.js. A cobertura de rotas não substitui testes de contrato HTTP. As PRs 110, 111, 113 e 114 têm branches separadas; revisar conflitos e integrar seus testes antes de publicar.
+
+### PATCH /api/users/{id}/password
+
+JWT de TI ativa. Redefine senha de funcionário ativo da mesma empresa e revoga suas sessões. Corpo: `{"newPassword":"nova-senha-exemplo"}`. 200, 400, 401, 403, 404, 429 ou 500.
