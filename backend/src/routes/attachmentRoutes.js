@@ -15,11 +15,26 @@ export function validarArquivo(bytes, mime) {
     if (!(mime==='application/pdf' && pdf || mime==='image/jpeg' && jpeg)) fail(415,'Somente PDF e JPEG válidos.');
 }
 async function storage(path, options={}) {
-    const base=process.env.SUPABASE_URL;
-    const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const base=process.env.SUPABASE_URL?.trim();
+    const key=process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
     if (!base || !key) fail(503,'Armazenamento não configurado.');
-    const response=await fetch(base.replace(/\/$/,'')+'/storage/v1/object/'+path,{...options,headers:{apikey:key,Authorization:'Bearer '+key,...options.headers}});
-    if (!response.ok) fail(502,'Falha no armazenamento.');
+    let origin;
+    try {
+        const url=new URL(base);
+        if (url.protocol!=='https:' || url.username || url.password || url.search || url.hash || url.pathname!=='/') throw new Error();
+        origin=url.origin;
+    } catch { fail(503,'URL do armazenamento inválida.'); }
+    let response;
+    try {
+        response=await fetch(origin+'/storage/v1/object/'+path,{...options,signal:AbortSignal.timeout(15000),headers:{apikey:key,Authorization:'Bearer '+key,...options.headers}});
+    } catch {
+        console.error('Anexos: falha de conexão com Storage');
+        fail(502,'Falha na conexão com armazenamento.');
+    }
+    if (!response.ok) {
+        console.error('Anexos: Storage HTTP',response.status);
+        fail(502,'Falha no armazenamento.');
+    }
     return response;
 }
 async function acesso(tx,user,kind,id) {
@@ -30,17 +45,20 @@ async function acesso(tx,user,kind,id) {
 }
 router.use(autenticarToken);
 router.post('/:kind/:id',express.raw({type:['application/pdf','image/jpeg'],limit:MAX}),async(req,res,next)=>{
-    let uploaded=false, path;
+    let uploaded=false, path, etapa='validacao';
     try {
         if (!verificarHorarioFuncionamento()) fail(403,'Fora do horário de envio.');
-        const {kind,id}=req.params, user=req.user, mime=req.headers['content-type'];
+        const {kind,id}=req.params, user=req.user, mime=req.headers['content-type']?.split(';')[0].trim().toLowerCase();
         validarArquivo(req.body,mime);
         const nome=String(req.query.nome||'arquivo').replace(/[\x00-\x1f\x7f/\\]/g,'_').slice(0,150);
         const messageId=randomUUID();
         path='chat-attachments/'+user.companyId+'/'+messageId;
+        etapa='permissao';
         await executarComContextoRLS(user,tx=>acesso(tx,user,kind,id));
+        etapa='storage';
         await storage(path,{method:'POST',headers:{'Content-Type':mime,'x-upsert':'false'},body:req.body});
         uploaded=true;
+        etapa='registro';
         await executarComContextoRLS(user,async tx=>{
             await acesso(tx,user,kind,id);
             if (!verificarHorarioFuncionamento()) fail(403,'Fora do horário de envio.');
@@ -49,7 +67,8 @@ router.post('/:kind/:id',express.raw({type:['application/pdf','image/jpeg'],limi
         });
         res.status(201).json({sucesso:true,id:messageId});
     } catch(e) {
-        if(uploaded) await storage(path,{method:'DELETE'}).catch(()=>{});
+        if (!e.status || e.status>=500) console.error('Anexos: etapa',etapa,'codigo',e.code || e.name,'status',e.status || 500);
+        if(uploaded) await storage(path,{method:'DELETE'}).catch(()=>console.error('Anexos: falha na limpeza do objeto'));
         next(e);
     }
 });

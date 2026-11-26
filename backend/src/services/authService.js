@@ -2,11 +2,11 @@ import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { sessionVersion } from '../utils/sessionVersion.js';
 import { chaveJWT as obterChaveJWT, senhaValida } from '../utils/authValidation.js';
-import { falha } from '../utils/adminValidation.js';
+import { falha, exigirAdministrador, validarId } from '../utils/adminValidation.js';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma.js';
 import {
-    verificarHorarioFuncionamento
+    verificarHorarioFuncionamento, limiteSessao
 } from '../utils/horarioFuncionamento.js';
 
 // ==========================================
@@ -98,9 +98,13 @@ export async function autenticarUsuario(email, password) {
     const chaveJWT = obterChaveJWT();
 
     // Criar token JWT com validade de 8 horas.
+    const agora = new Date();
+    const duracao = limiteSessao(agora);
+    if (!duracao) throw new Error('FORA_DO_HORARIO');
     const sessionId = randomUUID();
     const token = jwt.sign(
         {
+            iat: Math.floor(agora.getTime()/1000),
             jti: sessionId,
             companyId: usuario.companyId,
             role: usuario.role,
@@ -110,7 +114,7 @@ export async function autenticarUsuario(email, password) {
         {
             algorithm: 'HS256',
             subject: usuario.id,
-            expiresIn: '8h'
+            expiresIn: duracao
         }
     );
 
@@ -141,4 +145,18 @@ export async function alterarSenha(usuario, atual, nova){
     const passwordHash=await bcrypt.hash(nova,12);
     const resultado=await prisma.user.updateMany({where:{id:usuario.id,companyId:usuario.companyId,status:'ACTIVE',passwordHash:registro.passwordHash,company:{status:'ACTIVE'}},data:{passwordHash}});
     if(resultado.count!==1) throw falha(409,'Conta alterada durante a operação. Tente novamente.');
+}
+
+export async function redefinirSenhaTI(admin, id, nova) {
+    exigirAdministrador(admin);
+    validarId(id);
+    if (!senhaValida(nova)) throw falha(400,'Senha deve ter de 8 caracteres a 72 bytes.');
+    const passwordHash = await bcrypt.hash(nova,12);
+    await prisma.$transaction(async tx => {
+        const ator = await tx.user.findFirst({where:{id:admin.id,companyId:admin.companyId,role:'IT_ADMIN',status:'ACTIVE',company:{status:'ACTIVE'}},select:{id:true}});
+        if (!ator) throw falha(403,'Acesso restrito à TI ativa.');
+        const resultado = await tx.user.updateMany({where:{id,companyId:admin.companyId,status:'ACTIVE',company:{status:'ACTIVE'}},data:{passwordHash}});
+        if (resultado.count !== 1) throw falha(404,'Funcionário ativo não encontrado.');
+        await tx.$executeRaw`UPDATE public."AuthSession" SET "revokedAt" = now() WHERE "userId" = ${id}::uuid AND "revokedAt" IS NULL`;
+    }, {isolationLevel:'Serializable'});
 }

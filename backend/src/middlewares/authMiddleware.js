@@ -1,5 +1,6 @@
 
 import jwt from 'jsonwebtoken';
+import { verificarHorarioFuncionamento, limiteSessao } from '../utils/horarioFuncionamento.js';
 import { sessionVersion } from '../utils/sessionVersion.js';
 import { chaveJWT as obterChaveJWT, claimsValidos } from '../utils/authValidation.js';
 import { prisma } from '../config/prisma.js';
@@ -130,6 +131,11 @@ export async function autenticarToken(req, res, next) {
         if (typeof dadosToken.jti !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dadosToken.jti)) return responderErro(res,401,'Sessão inválida. Faça login novamente.');
         const sessoes = await prisma.$queryRaw`SELECT "id" FROM public."AuthSession" WHERE "id" = ${dadosToken.jti}::uuid AND "userId" = ${usuario.id}::uuid AND "revokedAt" IS NULL AND "expiresAt" > now()`;
         if (sessoes.length !== 1) return responderErro(res,401,'Sessão encerrada ou expirada.');
+        const agora = new Date();
+        const inicio = new Date(dadosToken.iat * 1000);
+        if (!verificarHorarioFuncionamento(agora) || !limiteSessao(inicio) || agora.getTime() >= (dadosToken.iat + limiteSessao(inicio))*1000) {
+            return responderErro(res,401,'Sessão encerrada pelo horário de funcionamento.');
+        }
         req.sessionId = dadosToken.jti;
 
         // ==========================================

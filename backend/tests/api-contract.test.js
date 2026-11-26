@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { verificarHorarioFuncionamento, verificarAcessoHorario } from '../src/utils/horarioFuncionamento.js';
+import { verificarHorarioFuncionamento, verificarAcessoHorario, limiteSessao } from '../src/utils/horarioFuncionamento.js';
 import { errorMiddleware } from '../src/middlewares/errorMiddleware.js';
 
 for (const [hora, permitido] of [['10:59:59',false],['11:00:00',true],['15:00:00',true],['20:59:59',true],['21:00:00',false],['23:00:00',false]]) {
@@ -37,3 +37,7 @@ test('Documentação cobre as rotas declaradas',()=>{
     const documented=[...doc.matchAll(/^### (GET|POST|PUT|PATCH|DELETE) (\S+)$/gm)].map(m=>m[1]+' '+m[2]);
     assert.deepEqual(documented.sort(),expected.sort());
 });
+
+for (const [hora, segundos] of [['10:59:59',0],['11:00:00',28800],['20:59:59',1],['21:00:00',0]]) {
+ test('Limite de sessão '+hora,()=>assert.equal(limiteSessao(new Date('2026-06-15T'+hora+'Z')),segundos));
+}

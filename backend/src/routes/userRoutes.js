@@ -14,6 +14,8 @@ import {
 
 import { consultarUsuario, atualizarUsuario, reativarUsuario, listarColegas } from '../services/userService.js';
 import { responderFalha } from '../utils/adminValidation.js';
+import { redefinirSenhaTI } from '../services/authService.js';
+import { limitarAuth } from '../middlewares/distributedAuthLimit.js';
 const router = Router();
 
 // ==========================================
@@ -40,6 +42,7 @@ router.get('/', listar);
 
 // Desativar usuário
 router.patch('/:id/desativar', desativar);
+router.patch('/:id/password', limitarAuth, async(req,res,next)=>{try{await redefinirSenhaTI(req.user,req.params.id,req.body?.newPassword);return res.json({sucesso:true,mensagem:'Senha redefinida e sessões revogadas.'});}catch(e){return responderFalha(e,res,next);}});
 
 router.get('/:id',async(req,res,next)=>{try{return res.json({sucesso:true,usuario:await consultarUsuario(req.params.id,req.user)});}catch(e){return responderFalha(e,res,next);}});
 router.patch('/:id',async(req,res,next)=>{try{return res.json({sucesso:true,usuario:await atualizarUsuario(req.params.id,req.body,req.user)});}catch(e){return responderFalha(e,res,next);}});
