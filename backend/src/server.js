@@ -12,6 +12,7 @@ import groupRoutes from './routes/groupRoutes.js';
 import myGroupRoutes from './routes/myGroupRoutes.js';
 import groupMessageRoutes from './routes/groupMessageRoutes.js';
 import chatRequestRoutes from './routes/chatRequestRoutes.js';
+import attachmentRoutes from './routes/attachmentRoutes.js';
 import privateChatRoutes from './routes/privateChatRoutes.js';
 
 import { errorMiddleware } from './middlewares/errorMiddleware.js';
@@ -191,6 +192,7 @@ app.use('/api/my-groups', myGroupRoutes);
 app.use('/api/group-messages', groupMessageRoutes);
 app.use('/api/chat-requests', chatRequestRoutes);
 app.use('/api/private-chats', privateChatRoutes);
+app.use('/api/attachments', attachmentRoutes);
 
 // ================================
 // ROTA NÃO ENCONTRADA
