@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { sessionVersion } from '../utils/sessionVersion.js';
 import { chaveJWT as obterChaveJWT, senhaValida } from '../utils/authValidation.js';
@@ -97,8 +98,10 @@ export async function autenticarUsuario(email, password) {
     const chaveJWT = obterChaveJWT();
 
     // Criar token JWT com validade de 8 horas.
+    const sessionId = randomUUID();
     const token = jwt.sign(
         {
+            jti: sessionId,
             companyId: usuario.companyId,
             role: usuario.role,
             sv: sessionVersion(usuario.passwordHash,chaveJWT)
@@ -110,6 +113,9 @@ export async function autenticarUsuario(email, password) {
             expiresIn: '8h'
         }
     );
+
+    const expiresAt = new Date(jwt.decode(token).exp * 1000);
+    await prisma.$executeRaw`INSERT INTO public."AuthSession" ("id", "userId", "expiresAt") VALUES (${sessionId}::uuid, ${usuario.id}::uuid, ${expiresAt})`;
 
     // Retornar token e dados públicos do usuário.
     // Nunca retornar passwordHash.
