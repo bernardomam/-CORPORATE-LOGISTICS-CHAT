@@ -356,21 +356,12 @@ export default function ChatCliente({
             }
           }
 
-          let anexo: Msg["arquivo"];
-          if (mensagem.type === "FILE" || mensagem.type === "IMAGE") {
-            try {
-              const meta = JSON.parse(mensagem.content || "");
-              if (typeof meta.nome === "string" && typeof meta.size === "number") {
-                anexo = { nome: meta.nome, tamanho: (meta.size / 1024).toFixed(1) + " KB", tipo: mensagem.type === "FILE" ? "pdf" : "imagem" };
-              }
-            } catch {}
-          }
           return {
             arquivo: anexo,
             id: String(mensagem.id),
             minha: String(remetenteId) === String(usuario?.id),
             texto: anexo ? "" : mensagem.content ?? mensagem.text ?? "",
-            hora: dataMensagem
+            hora: dataValida
               ? new Intl.DateTimeFormat("pt-BR", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -870,11 +861,15 @@ export default function ChatCliente({
             const mostrarData =
               indice === 0 || msgs[indice - 1].dataChave !== m.dataChave;
 
-                    {m.arquivo && (
-                      <button type="button" onClick={() => void baixarArquivo(m)} className="flex min-w-0 items-center gap-2 text-left">
-                        <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white">
-                          {m.arquivo.tipo === "pdf" ? "PDF" : "JPEG"}
-                        </div>
+            return (
+              <Fragment key={m.id}>
+                {mostrarData && (
+                  <div className="flex justify-center py-2">
+                    <span className="rounded-lg bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+                      {m.dataRotulo}
+                    </span>
+                  </div>
+                )}
 
                 <div
                   className={`flex w-full min-w-0 ${
@@ -894,12 +889,12 @@ export default function ChatCliente({
                           <p className="text-[11px] font-bold">
                             Respondendo mensagem
                           </p>
-                          <p className="text-xs opacity-70">
-                            {m.arquivo.tamanho} · Baixar
+
+                          <p className="truncate text-xs opacity-80">
+                            {textoDaMensagem(mensagemRespondida)}
                           </p>
                         </div>
-                      </button>
-                    )}
+                      )}
 
                       {m.texto && <p>{m.texto}</p>}
 
