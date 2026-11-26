@@ -1,14 +1,14 @@
 # API Callzup — documentação técnica
 
-Contrato proposto pelas PRs de desenvolvimento, com 50 operações HTTP. Não representa a versão publicada na main. Base local: `http://localhost:3001`. Em produção utilize a URL do backend na Vercel configurada pela equipe.
+Contrato técnico do backend local, com 48 operações HTTP ativas. Base local configurada: `http://localhost:3002`. Em produção utilize a URL do backend na Vercel configurada pela equipe.
 
 ## Arquitetura e autenticação
 
-Express → rotas → middlewares → controllers → services → Prisma → Supabase. O JWT HS256 dura até 8 horas, exige sub UUID, iat, exp e versão de sessão vinculada à senha. Alterar a senha invalida tokens anteriores; tokens emitidos antes desta atualização exigem novo login. O limite de autenticação é de 10 tentativas por janela de 15 minutos, persistido no PostgreSQL após migração. Envie `Authorization: Bearer TOKEN` nas rotas protegidas. A empresa e o perfil são obtidos da sessão validada no servidor. Login usa `senha`; cadastro usa `password`. Login, envio de mensagens e operações de solicitação de conversa são permitidos das 08:00 às 18:00 (exclusive), horário de Brasília. Histórico e reações não têm essa restrição.
+Express → rotas → middlewares → controllers → services → Prisma → Supabase. O JWT HS256 dura até 8 horas, exige sub UUID, iat, exp e versão de sessão vinculada à senha. As sessões são registradas no banco em AuthSession. O logout revoga a sessão atual. Alterar a senha invalida tokens anteriores; tokens emitidos antes desta atualização exigem novo login. O limite de autenticação é de 10 tentativas por janela de 15 minutos, persistido no PostgreSQL após migração. Envie `Authorization: Bearer TOKEN` nas rotas protegidas. A empresa e o perfil são obtidos da sessão validada no servidor. Login usa `senha`; cadastro usa `password`. Login, envio de mensagens e operações de solicitação de conversa são permitidos das 08:00 às 18:00 (exclusive), horário de Brasília. Histórico e reações não têm essa restrição.
 
 ## Configuração
 
-Na pasta backend, instale as dependências existentes com `npm ci` (se houver lockfile) ou `npm install`, configure `DATABASE_URL`, `JWT_SECRET` (chave aleatória forte, mínimo 32 bytes), `FRONTEND_URL` e `PORT` (opcional, padrão 3001). `APP_DATABASE_URL` e `USAR_CONEXAO_RLS` pertencem à configuração RLS, não ativar sem validação. Execute `npm run dev`. Não versione segredos.
+Na pasta backend, instale as dependências existentes com `npm ci` (se houver lockfile) ou `npm install`, configure `DATABASE_URL`, `JWT_SECRET` (chave aleatória forte, mínimo 32 bytes), `FRONTEND_URL` e `PORT` (opcional, padrão 3001). `APP_DATABASE_URL` e `USAR_CONEXAO_RLS` pertencem à configuração RLS, não ativar sem validação. Execute `npm run dev`. Para anexos, configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY exclusivamente no backend. Não versione segredos.
 
 ## Endpoints
 
@@ -493,25 +493,56 @@ JWT. Lista grupos ativos da própria empresa com participação ativa do usuári
 
 JWT. Lista solicitações enviadas e recebidas na própria empresa, em ordem decrescente de criação. 200: `sucesso`, `total`, `solicitacoes`. Não possui middleware de horário.
 
-### POST /api/group-requests
+### POST /api/auth/logout
 
-JWT. Corpo `{"name":"Projeto","memberIds":["00000000-0000-4000-8000-000000000001"]}`. Nome até 150 caracteres, até 499 IDs fornecidos; solicitante incluído automaticamente. Participantes ativos da mesma empresa. 201: `sucesso`, `dados` (solicitação). 400, 401, 403, 409.
+Exige JWT válido. Não exige corpo.
+Revoga a sessão atual na tabela AuthSession.
+Resposta 200: `sucesso`, `mensagem`.
+Erros possíveis: 401, 403 ou 500.
 
-### GET /api/group-requests/minhas
+### POST /api/attachments/{kind}/{id}
 
-JWT. Lista próprias solicitações. 200: `sucesso`, `dados` (array).
+Envia um anexo para uma conversa ativa.
+Exige autenticação e participação na conversa.
+Disponível das 08:00 às 18:00, horário de Brasília.
 
-### GET /api/group-requests
+Parâmetros:
+- `kind`: grupo ou privado.
+- `id`: UUID do grupo ou conversa privada.
+- `nome`: parâmetro de consulta opcional, até 150 caracteres.
 
-TI. Lista solicitações da empresa. 200: `sucesso`, `dados` (array).
+Corpo binário, sem multipart ou JSON.
+Content-Type: application/pdf ou image/jpeg.
+Limite no backend: 5 MB.
 
-### PATCH /api/group-requests/{id}/aprovar
+Armazenamento privado no Supabase Storage.
+Resposta 201: `sucesso`, `id` da mensagem.
+Erros possíveis: 400, 401, 403, 404, 413, 415, 500, 502 ou 503.
 
-TI. Sem corpo. Não pode analisar própria solicitação. Cria grupo e vincula pedido em uma transação. 200: `sucesso`, `dados` (solicitação com groupId). 400, 401, 403, 404, 409.
+### GET /api/attachments/{messageId}
 
-### PATCH /api/group-requests/{id}/rejeitar
+Baixa um anexo PDF ou JPEG.
+Exige autenticação, mesma empresa e participação
+na conversa ativa.
 
-TI. Sem corpo. Não pode analisar própria solicitação. 200: `sucesso`, `dados` (solicitação rejeitada). 400, 401, 403, 404, 409.
+Parâmetro `messageId`: UUID da mensagem.
+Resposta 200: conteúdo binário do arquivo.
+Download protegido, sem cache.
+Erros possíveis: 400, 401, 403, 404, 415, 500, 502 ou 503.
+
+## Rotas desativadas
+
+As solicitações de grupos estão desativadas.
+A participação em grupos é administrada pela TI.
+
+As antigas operações abaixo retornam HTTP 410:
+
+- POST /api/group-requests
+- GET /api/group-requests
+- GET /api/group-requests/minhas
+- PATCH /api/group-requests/{id}/aprovar
+- PATCH /api/group-requests/{id}/rejeitar
+
 
 ## Objetos de resposta
 
@@ -550,11 +581,11 @@ if (pagina.temMais) {
 
 ## Erros e permissões
 
-400 validação; 401 sessão ou credenciais inválidas; 403 acesso negado ou horário; 404 recurso ausente; 409 conflito; 413 corpo maior que 100 KB; 429 limite de autenticação (Retry-After em segundos); 500 falha interna; 503 banco indisponível no status. A resposta de erro normalmente contém sucesso:false e mensagem. O middleware de horário inclui codigo FORA_DO_HORARIO; nem todo erro de horário inclui esse campo. TI não recebe acesso automático a mensagens de grupos ou conversas dos quais não participa. CORS permite origens configuradas em FRONTEND_URL, separadas por vírgula. OPTIONS retorna 204 para origem permitida e 403 para origem não permitida.
+400 validação; 401 sessão ou credenciais inválidas; 403 acesso negado ou horário; 404 recurso ausente; 409 conflito; 410 rota desativada; 413 corpo acima do limite; 415 formato não suportado; 429 limite de autenticação (Retry-After em segundos); 500 falha interna; 503 banco indisponível no status. A resposta de erro normalmente contém sucesso:false e mensagem. O middleware de horário inclui codigo FORA_DO_HORARIO; nem todo erro de horário inclui esse campo. TI não recebe acesso automático a mensagens de grupos ou conversas dos quais não participa. CORS permite origens configuradas em FRONTEND_URL, separadas por vírgula. OPTIONS retorna 204 para origem permitida e 403 para origem não permitida.
 
 ## Implantação e limitações
 
-A migração da PR 117 é requisito para autenticação distribuída, solicitações de grupo e índices únicos parciais. Validar duplicidades existentes antes de aplicar; não apagar histórico. RLS e conexão restrita ainda precisam de testes. Não executar testes de escrita em produção. Apenas texto é aceito pelos endpoints de envio, embora o schema tenha IMAGE e FILE. Não há exclusão de departamentos. Reativar usuário não restaura grupos. O fluxo de solicitação de grupo não aplica restrição de horário no código atual. A documentação descreve o código proposto, não certifica funcionamento HTTP nem aprovação das PRs.
+A migração da PR 117 é requisito para autenticação distribuída, solicitações de grupo e índices únicos parciais. Validar duplicidades existentes antes de aplicar; não apagar histórico. RLS e conexão restrita ainda precisam de testes. Não executar testes de escrita em produção. Os endpoints de mensagens aceitam texto. PDF e JPEG são enviados pelos endpoints específicos de anexos. Não há exclusão de departamentos. Reativar usuário não restaura grupos. O fluxo de solicitação de grupo está desativado e retorna HTTP 410. A documentação descreve o código local e não substitui testes HTTP e de integração.
 
 ## Manutenção
 
