@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { dentroDoHorario } from "../../lib/horario";
 import { useAuth } from "../../contextos/AuthContext";
@@ -39,18 +39,33 @@ type Msg = {
 type MensagemBackend = {
   id: string;
   content?: string;
-  type?: string;
-  text?: string;
-  senderId?: string;
+  type?: "TEXT" | "FILE" | "IMAGE" | string;
   userId?: string;
-  sender?: { id?: string };
-  user?: { id?: string };
+  sender?: { id?: string; name?: string; role?: "USER" | "IT_ADMIN" };
   createdAt?: string;
-  created_at?: string;
-  sentAt?: string;
   replyToId?: string | null;
   reactions?: Array<string | { emoji?: string }>;
 };
+
+type RespostaUploadAnexo = {
+  sucesso: true;
+  id: string;
+};
+
+const LIMITE_ANEXO_BYTES = 4_194_304;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function mensagemErroAnexo(status: number, acao: "enviar" | "baixar") {
+  if (status === 400) return "O arquivo ou os dados enviados são inválidos.";
+  if (status === 401) return "Sua sessão expirou. Entre novamente na sua conta.";
+  if (status === 403) return "Ação não permitida. Verifique seu acesso e o horário de funcionamento (8h às 18h).";
+  if (status === 404) return acao === "enviar" ? "A conversa não foi encontrada ou você não tem acesso a ela." : "Este anexo não foi encontrado ou você não tem acesso a ele.";
+  if (status === 413) return "O arquivo ultrapassa o limite de 4 MiB.";
+  if (status === 415) return "Formato ou conteúdo inválido. Envie um PDF ou JPEG válido.";
+  if (status === 429) return "Muitas tentativas em pouco tempo. Aguarde e tente novamente.";
+  if (status === 500 || status === 502 || status === 503) return "O servidor ou o armazenamento está temporariamente indisponível. Tente novamente mais tarde.";
+  return acao === "enviar" ? "Não foi possível enviar o anexo." : "Não foi possível baixar o anexo.";
+}
 
 const emojis = ["👍", "❤️", "😂", "😮", "😢", "👏"];
 
@@ -237,12 +252,16 @@ const somenteLeitura =
   const [carregandoMensagens, setCarregandoMensagens] = useState(true);
   const [texto, setTexto] = useState("");
   const [aviso, setAviso] = useState("");
+  const [confirmacao, setConfirmacao] = useState("");
   const [respondendo, setRespondendo] = useState<Msg | null>(null);
   const [reacaoAberta, setReacaoAberta] = useState<string | null>(null);
   const [informacoesAbertas, setInformacoesAbertas] = useState(false);
   const [participanteSelecionado, setParticipanteSelecionado] =
     useState<Participante | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [urlsImagens, setUrlsImagens] = useState<Record<string, string>>({});
+  const [falhasImagens, setFalhasImagens] = useState<Record<string, boolean>>({});
+  const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
 
   const arquivoRef = useRef<HTMLInputElement>(null);
 
@@ -274,26 +293,17 @@ const somenteLeitura =
         );
       }
 
-      const lista = Array.isArray(dados)
-        ? dados
-        : dados?.mensagens ?? dados?.messages ?? dados?.data;
+      // Os controllers retornam { sucesso, total, mensagens, temMais, proximoCursor }.
+      const lista = dados?.mensagens;
 
       if (!Array.isArray(lista)) {
-        throw new Error("Formato de mensagens retornado pelo servidor inválido.");
+        throw new Error("O histórico retornou um formato de mensagens inválido.");
       }
 
       const formatadas: Msg[] = lista.map(
         (mensagem: MensagemBackend) => {
-          const remetenteId =
-            mensagem.senderId ??
-            mensagem.userId ??
-            mensagem.sender?.id ??
-            mensagem.user?.id;
-
-          const dataMensagem =
-            mensagem.createdAt ??
-            mensagem.created_at ??
-            mensagem.sentAt;
+          const remetenteId = mensagem.userId ?? mensagem.sender?.id;
+          const dataMensagem = mensagem.createdAt;
 
           const dataConvertida = dataMensagem ? new Date(dataMensagem) : null;
           const dadosData = dataConvertida
@@ -303,22 +313,36 @@ const somenteLeitura =
           let anexo: Msg["arquivo"] = undefined;
           if (mensagem.type === "FILE" || mensagem.type === "IMAGE") {
             try {
-              const meta = JSON.parse(mensagem.content || "");
-              if (typeof meta.nome === "string" && typeof meta.size === "number") {
-                anexo = {
-                  nome: meta.nome,
-                  tamanho: (meta.size / 1024).toFixed(1) + " KB",
-                  tipo: mensagem.type === "FILE" ? "pdf" : "imagem",
-                };
+              const meta: unknown = JSON.parse(mensagem.content || "");
+              if (meta && typeof meta === "object") {
+                const arquivo = meta as { nome?: unknown; mime?: unknown; size?: unknown };
+                const mimeEsperado = mensagem.type === "FILE" ? "application/pdf" : "image/jpeg";
+                if (
+                  typeof arquivo.nome === "string" &&
+                  typeof arquivo.size === "number" &&
+                  Number.isFinite(arquivo.size) &&
+                  arquivo.size >= 0 &&
+                  arquivo.mime === mimeEsperado
+                ) {
+                  anexo = {
+                    nome: arquivo.nome,
+                    tamanho: arquivo.size < 1024 * 1024
+                      ? `${(arquivo.size / 1024).toFixed(1)} KB`
+                      : `${(arquivo.size / (1024 * 1024)).toFixed(2)} MB`,
+                    tipo: mensagem.type === "FILE" ? "pdf" : "imagem",
+                  };
+                }
               }
-            } catch {}
+            } catch {
+              // Uma mensagem com metadados inválidos não deve quebrar o histórico.
+            }
           }
 
           return {
             arquivo: anexo,
             id: String(mensagem.id),
             minha: String(remetenteId) === String(usuario?.id),
-            texto: anexo ? "" : mensagem.content ?? mensagem.text ?? "",
+            texto: anexo ? "" : mensagem.content ?? "",
             hora: dataConvertida
               ? new Intl.DateTimeFormat("pt-BR", {
                   hour: "2-digit",
@@ -344,12 +368,14 @@ const somenteLeitura =
       );
 
       setMsgs(formatadas);
+      return formatadas;
     } catch (error) {
       setAviso(
         error instanceof Error
           ? error.message
           : "Não foi possível carregar as mensagens."
       );
+      return null;
     } finally {
       setCarregandoMensagens(false);
     }
@@ -358,8 +384,70 @@ const somenteLeitura =
   useEffect(() => {
     setMsgs([]);
     setCarregandoMensagens(true);
-    carregarMensagens();
+    void carregarMensagens();
   }, [carregarMensagens]);
+
+  const idsImagens = msgs
+    .filter((mensagem) => mensagem.arquivo?.tipo === "imagem")
+    .map((mensagem) => mensagem.id)
+    .join("|");
+
+  useEffect(() => {
+    let cancelado = false;
+    const urlsCriadas: string[] = [];
+    setUrlsImagens({});
+    setFalhasImagens({});
+
+    if (!token || !idsImagens) {
+      return () => {
+        cancelado = true;
+      };
+    }
+
+    async function carregarImagens() {
+      const ids = idsImagens.split("|");
+      const pares = await Promise.all(ids.map(async (messageId) => {
+        try {
+          const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+          if (!base) return { id: messageId, erro: true as const };
+          const resposta = await fetch(`${base}/api/attachments/${encodeURIComponent(messageId)}`, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+          });
+          if (!resposta.ok) return { id: messageId, erro: true as const };
+          const blob = await resposta.blob();
+          if (blob.type && blob.type !== "image/jpeg") return { id: messageId, erro: true as const };
+          const url = URL.createObjectURL(blob);
+          urlsCriadas.push(url);
+          return { id: messageId, url } as const;
+        } catch {
+          return { id: messageId, erro: true as const };
+        }
+      }));
+
+      if (cancelado) {
+        urlsCriadas.forEach((url) => URL.revokeObjectURL(url));
+        return;
+      }
+
+      const novasUrls: Record<string, string> = {};
+      const novasFalhas: Record<string, boolean> = {};
+      pares.forEach((par) => {
+        if (par && typeof par.url === "string") novasUrls[par.id] = par.url;
+        else if (par) novasFalhas[par.id] = true;
+      });
+      setUrlsImagens(novasUrls);
+      setFalhasImagens(novasFalhas);
+    }
+
+    void carregarImagens();
+
+    return () => {
+      cancelado = true;
+      urlsCriadas.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [idsImagens, token]);
 
   function abrirInformacoes() {
     setParticipanteSelecionado(
@@ -419,44 +507,116 @@ const somenteLeitura =
     }
   }
 
-  async function escolherArquivo(e: React.ChangeEvent<HTMLInputElement>) {
+  async function escolherArquivo(e: ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0];
     e.target.value = "";
+
     if (!arquivo || somenteLeitura || enviando || !token) return;
-    if (!["application/pdf", "image/jpeg"].includes(arquivo.type) || arquivo.size > 5 * 1024 * 1024 || !arquivo.size) {
-      setAviso("Selecione um PDF ou JPEG de até 5 MB.");
+
+    if (!dentroDoHorario()) {
+      setAviso("Fora do horário de uso (8h às 18h). Não é possível enviar anexos.");
       return;
     }
+
+    if (!UUID_REGEX.test(id)) {
+      setAviso("Não foi possível identificar o UUID desta conversa.");
+      return;
+    }
+
+    if (arquivo.size <= 0 || arquivo.size > LIMITE_ANEXO_BYTES) {
+      setAviso("O arquivo deve ter conteúdo e tamanho máximo de 4 MiB.");
+      return;
+    }
+
+    if (arquivo.type !== "application/pdf" && arquivo.type !== "image/jpeg") {
+      setAviso("Formato não permitido. Selecione um arquivo PDF ou JPEG.");
+      return;
+    }
+
+    const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+    if (!base) {
+      setAviso("A API não está configurada.");
+      return;
+    }
+
     setEnviando(true);
+    setAviso("");
+    setConfirmacao("");
+
     try {
-      const base = process.env.NEXT_PUBLIC_API_URL;
-      if (!base) throw new Error("API não configurada.");
-      const rota = tipoConversa === "grupo" ? "grupo" : "privado";
-      const res = await fetch(base + "/api/attachments/" + rota + "/" + encodeURIComponent(id) + "?nome=" + encodeURIComponent(arquivo.name), {
-        method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": arquivo.type }, body: arquivo
+      const kind = tipoConversa === "grupo" ? "grupo" : "privado";
+      const url = `${base}/api/attachments/${kind}/${encodeURIComponent(id)}?nome=${encodeURIComponent(arquivo.name)}`;
+      const resposta = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": arquivo.type,
+        },
+        body: arquivo,
+        cache: "no-store",
       });
-      if (!res.ok) throw new Error((await res.json().catch(() => null))?.mensagem || "Falha ao enviar arquivo.");
-      await carregarMensagens();
+
+      if (resposta.status !== 201) {
+        throw new Error(mensagemErroAnexo(resposta.status, "enviar"));
+      }
+
+      const resultado = await resposta.json().catch(() => null) as RespostaUploadAnexo | null;
+      if (!resultado || resultado.sucesso !== true || typeof resultado.id !== "string" || !UUID_REGEX.test(resultado.id)) {
+        throw new Error("O servidor confirmou o envio, mas retornou uma confirmação inválida.");
+      }
+
+      // A mensagem só entra na interface depois do HTTP 201 e da leitura do histórico persistido.
+      const historicoAtualizado = await carregarMensagens();
+      if (!historicoAtualizado?.some((mensagem) => mensagem.id === resultado.id)) {
+        setAviso("O servidor recebeu o anexo, mas ele ainda não apareceu no histórico. Atualize a conversa em instantes.");
+      } else {
+        setConfirmacao("Anexo enviado com sucesso.");
+      }
     } catch (error) {
-      setAviso(error instanceof Error ? error.message : "Falha ao enviar arquivo.");
-    } finally { setEnviando(false); }
+      setConfirmacao("");
+      setAviso(error instanceof Error ? error.message : "Não foi possível enviar o anexo.");
+    } finally {
+      setEnviando(false);
+    }
   }
 
   async function baixarArquivo(msg: Msg) {
-    if (!token || !msg.arquivo) return;
+    if (!token || !msg.arquivo || enviando) return;
+
+    const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+    if (!base) {
+      setAviso("A API não está configurada.");
+      return;
+    }
+
     try {
-      const base = process.env.NEXT_PUBLIC_API_URL;
-      if (!base) throw new Error("API não configurada.");
-      const res = await fetch(base + "/api/attachments/" + encodeURIComponent(msg.id), { headers: { Authorization: "Bearer " + token }, cache: "no-store" });
-      if (!res.ok) throw new Error("Não foi possível acessar o arquivo.");
-      const url = URL.createObjectURL(await res.blob());
+      setAviso("");
+      const resposta = await fetch(`${base}/api/attachments/${encodeURIComponent(msg.id)}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+
+      if (!resposta.ok) {
+        throw new Error(mensagemErroAnexo(resposta.status, "baixar"));
+      }
+
+      const blob = await resposta.blob();
+      const mimeEsperado = msg.arquivo.tipo === "pdf" ? "application/pdf" : "image/jpeg";
+      if (blob.type && blob.type !== mimeEsperado) {
+        throw new Error("O servidor retornou um formato de arquivo inesperado.");
+      }
+
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = msg.arquivo.nome;
+      document.body.appendChild(link);
       link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
-      setAviso(error instanceof Error ? error.message : "Falha ao baixar arquivo.");
+      setAviso(error instanceof Error ? error.message : "Não foi possível baixar o anexo.");
     }
   }
 
@@ -554,6 +714,32 @@ const somenteLeitura =
             </div>
           </button>
         </header>
+
+        {imagemAmpliada && urlsImagens[imagemAmpliada] && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+            onClick={() => setImagemAmpliada(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Visualização ampliada da imagem"
+          >
+            <button
+              type="button"
+              onClick={() => setImagemAmpliada(null)}
+              className="absolute right-5 top-4 rounded-full bg-white/15 px-3 py-1 text-3xl text-white"
+              aria-label="Fechar imagem"
+            >
+              ×
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={urlsImagens[imagemAmpliada]}
+              alt={msgs.find((mensagem) => mensagem.id === imagemAmpliada)?.arquivo?.nome || "Imagem ampliada"}
+              className="max-h-full max-w-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
 
         {informacoesAbertas && (
           <div
@@ -733,21 +919,48 @@ const somenteLeitura =
 
                     {m.texto && <p>{m.texto}</p>}
 
-                    {m.arquivo && (
-                      <button type="button" onClick={() => void baixarArquivo(m)} className="flex min-w-0 items-center gap-2 text-left">
+                    {m.arquivo?.tipo === "pdf" && (
+                      <button
+                        type="button"
+                        onClick={() => void baixarArquivo(m)}
+                        className="flex min-w-0 items-center gap-2 text-left"
+                      >
                         <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white">
-                          {m.arquivo.tipo === "pdf" ? "PDF" : "JPEG"}
+                          PDF
                         </div>
-
                         <div className="min-w-0">
-                          <p className="break-all text-sm font-bold">
-                            {m.arquivo.nome}
-                          </p>
-                          <p className="text-xs opacity-70">
-                            {m.arquivo.tamanho} · Baixar
-                          </p>
+                          <p className="break-all text-sm font-bold">{m.arquivo.nome}</p>
+                          <p className="text-xs opacity-70">{m.arquivo.tamanho} · Baixar documento</p>
                         </div>
                       </button>
+                    )}
+
+                    {m.arquivo?.tipo === "imagem" && (
+                      <div className="min-w-0 space-y-2">
+                        {urlsImagens[m.id] ? (
+                          <button
+                            type="button"
+                            onClick={() => setImagemAmpliada(m.id)}
+                            className="block max-w-full overflow-hidden rounded-lg"
+                            aria-label={`Ampliar imagem ${m.arquivo.nome}`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={urlsImagens[m.id]}
+                              alt={m.arquivo.nome}
+                              className="max-h-72 max-w-full rounded-lg object-contain"
+                            />
+                          </button>
+                        ) : (
+                          <p className="text-xs opacity-70">
+                            {falhasImagens[m.id] ? "Não foi possível carregar a imagem." : "Carregando imagem..."}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between gap-3 text-xs">
+                          <span className="min-w-0 break-all font-semibold">{m.arquivo.nome} · {m.arquivo.tamanho}</span>
+                          <button type="button" onClick={() => void baixarArquivo(m)} className="shrink-0 underline">Baixar</button>
+                        </div>
+                      </div>
                     )}
 
                     <p
@@ -853,6 +1066,19 @@ const somenteLeitura =
               </p>
             )}
 
+            {confirmacao && (
+              <p className="mb-2 text-center text-xs font-semibold text-emerald-600" role="status">
+                {confirmacao}
+              </p>
+            )}
+
+            {enviando && (
+              <p className="mb-2 flex items-center justify-center gap-2 text-xs font-semibold text-[#3d3fe8]" role="status" aria-live="polite">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#3d3fe8] border-t-transparent" />
+                Enviando...
+              </p>
+            )}
+
             {respondendo && (
               <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2">
                 <div className="min-w-0">
@@ -886,7 +1112,7 @@ const somenteLeitura =
 
               <button
                 type="button"
-                disabled={!horarioPermitido}
+                disabled={!horarioPermitido || enviando}
                 onClick={() => arquivoRef.current?.click()}
                 aria-label="Anexar PDF ou JPEG"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl text-[#1e2a78] transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
