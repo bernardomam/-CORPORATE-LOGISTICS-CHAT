@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { api } from "../lib/api";
+
 export type Perfil = "USER" | "IT_ADMIN";
 
 export type Usuario = {
@@ -85,6 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function sair() {
+    const tokenAtual = token;
+    if (tokenAtual) {
+      void api("/api/auth/logout", { method: "POST", token: tokenAtual, keepalive: true }).catch(() => {
+        console.error("Não foi possível confirmar a revogação da sessão no servidor.");
+      });
+    }
     setUsuario(null);
     setToken(null);
 
