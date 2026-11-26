@@ -429,14 +429,9 @@ export default function ChatCliente({
       const pares = await Promise.all(
         ids.map(async (messageId) => {
           try {
-            const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-
-            if (!base) {
-              return { id: messageId, erro: true as const };
-            }
 
             const resposta = await fetch(
-              `${base}/api/attachments/${encodeURIComponent(messageId)}`,
+              `/api/attachments/${encodeURIComponent(messageId)}`,
               {
                 method: "GET",
                 headers: { Authorization: `Bearer ${token}` },
@@ -555,16 +550,14 @@ export default function ChatCliente({
     const arquivo = e.target.files?.[0];
     e.target.value = "";
     if (!arquivo || somenteLeitura || enviando || !token) return;
-    if (!["application/pdf", "image/jpeg"].includes(arquivo.type) || arquivo.size > 5 * 1024 * 1024 || !arquivo.size) {
-      setAviso("Selecione um PDF ou JPEG de até 5 MB.");
+    if (!["application/pdf", "image/jpeg"].includes(arquivo.type) || arquivo.size > 4 * 1024 * 1024 || !arquivo.size) {
+      setAviso("Selecione um PDF ou JPEG de até 4 MB.");
       return;
     }
     setEnviando(true);
     try {
-      const base = process.env.NEXT_PUBLIC_API_URL;
-      if (!base) throw new Error("API não configurada.");
       const rota = tipoConversa === "grupo" ? "grupo" : "privado";
-      const res = await fetch(base + "/api/attachments/" + rota + "/" + encodeURIComponent(id) + "?nome=" + encodeURIComponent(arquivo.name), {
+      const res = await fetch("/api/attachments/" + rota + "/" + encodeURIComponent(id) + "?nome=" + encodeURIComponent(arquivo.name), {
         method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": arquivo.type }, body: arquivo
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.mensagem || "Falha ao enviar arquivo.");
@@ -577,9 +570,7 @@ export default function ChatCliente({
   async function baixarArquivo(msg: Msg) {
     if (!token || !msg.arquivo) return;
     try {
-      const base = process.env.NEXT_PUBLIC_API_URL;
-      if (!base) throw new Error("API não configurada.");
-      const res = await fetch(base + "/api/attachments/" + encodeURIComponent(msg.id), { headers: { Authorization: "Bearer " + token }, cache: "no-store" });
+      const res = await fetch("/api/attachments/" + encodeURIComponent(msg.id), { headers: { Authorization: "Bearer " + token }, cache: "no-store" });
       if (!res.ok) throw new Error("Não foi possível acessar o arquivo.");
       const url = URL.createObjectURL(await res.blob());
       const link = document.createElement("a");

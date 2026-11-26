@@ -1,5 +1,5 @@
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 
 type OpcoesAPI = RequestInit & {
   token?: string | null;
@@ -9,13 +9,10 @@ export async function api(
   caminho: string,
   opcoes: OpcoesAPI = {}
 ) {
-  if (!API_URL) {
-    throw new Error("A variável NEXT_PUBLIC_API_URL não está configurada.");
-  }
 
   const { token, headers, ...resto } = opcoes;
 
-  const resposta = await fetch(`${API_URL}${caminho}`, {
+  const resposta = await fetch(caminho, {
     ...resto,
     headers: {
       "Content-Type": "application/json",
