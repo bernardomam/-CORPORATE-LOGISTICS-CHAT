@@ -85,7 +85,7 @@ export default function ConversasPage() {
       }
 
       const conversasFormatadas: Conversa[] = lista
-        .map((conversa) => {
+  .map<Conversa | null>((conversa) => {
           const membros = Array.isArray(conversa.members)
             ? conversa.members
             : [];

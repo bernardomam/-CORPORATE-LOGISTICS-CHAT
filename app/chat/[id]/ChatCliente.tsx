@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
@@ -39,7 +38,7 @@ type Msg = {
 type MensagemBackend = {
   id: string;
   content?: string;
-  type?: "TEXT" | "FILE" | "IMAGE" | string;
+  type?: "TEXT" | "FILE" | "IMAGE";
   userId?: string;
   sender?: { id?: string; name?: string; role?: "USER" | "IT_ADMIN" };
   createdAt?: string;
@@ -95,12 +94,15 @@ function obterRotuloData(data: Date) {
     Number(partesHoje.mes) - 1,
     Number(partesHoje.dia)
   );
+
   const ontem = new Date(hojeUTC - 24 * 60 * 60 * 1000);
+
   const partesOntem = {
     ano: String(ontem.getUTCFullYear()),
     mes: String(ontem.getUTCMonth() + 1).padStart(2, "0"),
     dia: String(ontem.getUTCDate()).padStart(2, "0"),
   };
+
   const chaveOntem = `${partesOntem.ano}-${partesOntem.mes}-${partesOntem.dia}`;
 
   let rotulo = new Intl.DateTimeFormat("pt-BR", {
@@ -222,7 +224,6 @@ export default function ChatCliente({
   tipoConversa = "privada",
   embutido = false,
   onVoltar,
-  adminParticipa = false,
   participantes = [],
 }: {
   id: string;
@@ -236,17 +237,16 @@ export default function ChatCliente({
 
   const isAdminTI = usuario?.role === "IT_ADMIN";
 
-const somenteLeitura =
-  isAdminTI &&
-  tipoConversa === "grupo" &&
-  !adminParticipa;
+  // IT_ADMIN sempre consulta conversas privadas e grupos em somente leitura.
+  // A permissão não depende de ele participar ou não do grupo.
+  const somenteLeitura = isAdminTI;
 
   const contato = participantes[0] ?? null;
 
   const nome =
-  tipoConversa === "privada"
-    ? contato?.nome ?? "Conversa privada"
-    : "Grupo";
+    tipoConversa === "privada"
+      ? contato?.nome ?? "Conversa privada"
+      : "Grupo";
 
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [carregandoMensagens, setCarregandoMensagens] = useState(true);
@@ -293,7 +293,6 @@ const somenteLeitura =
         );
       }
 
-      // Os controllers retornam { sucesso, total, mensagens, temMais, proximoCursor }.
       const lista = dados?.mensagens;
 
       if (!Array.isArray(lista)) {
@@ -306,17 +305,33 @@ const somenteLeitura =
           const dataMensagem = mensagem.createdAt;
 
           const dataConvertida = dataMensagem ? new Date(dataMensagem) : null;
-          const dadosData = dataConvertida
-            ? obterRotuloData(dataConvertida)
+          const dataValida =
+            dataConvertida && !Number.isNaN(dataConvertida.getTime())
+              ? dataConvertida
+              : null;
+
+          const dadosData = dataValida
+            ? obterRotuloData(dataValida)
             : { chave: "sem-data", rotulo: "Data não informada" };
 
           let anexo: Msg["arquivo"] = undefined;
+
           if (mensagem.type === "FILE" || mensagem.type === "IMAGE") {
             try {
               const meta: unknown = JSON.parse(mensagem.content || "");
+
               if (meta && typeof meta === "object") {
-                const arquivo = meta as { nome?: unknown; mime?: unknown; size?: unknown };
-                const mimeEsperado = mensagem.type === "FILE" ? "application/pdf" : "image/jpeg";
+                const arquivo = meta as {
+                  nome?: unknown;
+                  mime?: unknown;
+                  size?: unknown;
+                };
+
+                const mimeEsperado =
+                  mensagem.type === "FILE"
+                    ? "application/pdf"
+                    : "image/jpeg";
+
                 if (
                   typeof arquivo.nome === "string" &&
                   typeof arquivo.size === "number" &&
@@ -326,15 +341,16 @@ const somenteLeitura =
                 ) {
                   anexo = {
                     nome: arquivo.nome,
-                    tamanho: arquivo.size < 1024 * 1024
-                      ? `${(arquivo.size / 1024).toFixed(1)} KB`
-                      : `${(arquivo.size / (1024 * 1024)).toFixed(2)} MB`,
+                    tamanho:
+                      arquivo.size < 1024 * 1024
+                        ? `${(arquivo.size / 1024).toFixed(1)} KB`
+                        : `${(arquivo.size / (1024 * 1024)).toFixed(2)} MB`,
                     tipo: mensagem.type === "FILE" ? "pdf" : "imagem",
                   };
                 }
               }
             } catch {
-              // Uma mensagem com metadados inválidos não deve quebrar o histórico.
+              // Metadados inválidos não devem interromper o carregamento do histórico.
             }
           }
 
@@ -343,13 +359,13 @@ const somenteLeitura =
             id: String(mensagem.id),
             minha: String(remetenteId) === String(usuario?.id),
             texto: anexo ? "" : mensagem.content ?? "",
-            hora: dataConvertida
+            hora: dataValida
               ? new Intl.DateTimeFormat("pt-BR", {
                   hour: "2-digit",
                   minute: "2-digit",
                   hourCycle: "h23",
                   timeZone: FUSO_HORARIO,
-                }).format(dataConvertida)
+                }).format(dataValida)
               : "--:--",
             dataChave: dadosData.chave,
             dataRotulo: dadosData.rotulo,
@@ -395,6 +411,7 @@ const somenteLeitura =
   useEffect(() => {
     let cancelado = false;
     const urlsCriadas: string[] = [];
+
     setUrlsImagens({});
     setFalhasImagens({});
 
@@ -406,25 +423,44 @@ const somenteLeitura =
 
     async function carregarImagens() {
       const ids = idsImagens.split("|");
-      const pares = await Promise.all(ids.map(async (messageId) => {
-        try {
-          const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-          if (!base) return { id: messageId, erro: true as const };
-          const resposta = await fetch(`${base}/api/attachments/${encodeURIComponent(messageId)}`, {
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
-            cache: "no-store",
-          });
-          if (!resposta.ok) return { id: messageId, erro: true as const };
-          const blob = await resposta.blob();
-          if (blob.type && blob.type !== "image/jpeg") return { id: messageId, erro: true as const };
-          const url = URL.createObjectURL(blob);
-          urlsCriadas.push(url);
-          return { id: messageId, url } as const;
-        } catch {
-          return { id: messageId, erro: true as const };
-        }
-      }));
+
+      const pares = await Promise.all(
+        ids.map(async (messageId) => {
+          try {
+            const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+
+            if (!base) {
+              return { id: messageId, erro: true as const };
+            }
+
+            const resposta = await fetch(
+              `${base}/api/attachments/${encodeURIComponent(messageId)}`,
+              {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` },
+                cache: "no-store",
+              }
+            );
+
+            if (!resposta.ok) {
+              return { id: messageId, erro: true as const };
+            }
+
+            const blob = await resposta.blob();
+
+            if (blob.type && blob.type !== "image/jpeg") {
+              return { id: messageId, erro: true as const };
+            }
+
+            const url = URL.createObjectURL(blob);
+            urlsCriadas.push(url);
+
+            return { id: messageId, url } as const;
+          } catch {
+            return { id: messageId, erro: true as const };
+          }
+        })
+      );
 
       if (cancelado) {
         urlsCriadas.forEach((url) => URL.revokeObjectURL(url));
@@ -433,10 +469,15 @@ const somenteLeitura =
 
       const novasUrls: Record<string, string> = {};
       const novasFalhas: Record<string, boolean> = {};
+
       pares.forEach((par) => {
-        if (par && typeof par.url === "string") novasUrls[par.id] = par.url;
-        else if (par) novasFalhas[par.id] = true;
+        if (par && typeof par.url === "string") {
+          novasUrls[par.id] = par.url;
+        } else if (par) {
+          novasFalhas[par.id] = true;
+        }
       });
+
       setUrlsImagens(novasUrls);
       setFalhasImagens(novasFalhas);
     }
@@ -453,6 +494,7 @@ const somenteLeitura =
     setParticipanteSelecionado(
       tipoConversa === "privada" ? contato : null
     );
+
     setInformacoesAbertas(true);
   }
 
@@ -534,6 +576,7 @@ const somenteLeitura =
     }
 
     const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+
     if (!base) {
       setAviso("A API não está configurada.");
       return;
@@ -545,7 +588,9 @@ const somenteLeitura =
 
     try {
       const kind = tipoConversa === "grupo" ? "grupo" : "privado";
+
       const url = `${base}/api/attachments/${kind}/${encodeURIComponent(id)}?nome=${encodeURIComponent(arquivo.name)}`;
+
       const resposta = await fetch(url, {
         method: "POST",
         headers: {
@@ -560,21 +605,38 @@ const somenteLeitura =
         throw new Error(mensagemErroAnexo(resposta.status, "enviar"));
       }
 
-      const resultado = await resposta.json().catch(() => null) as RespostaUploadAnexo | null;
-      if (!resultado || resultado.sucesso !== true || typeof resultado.id !== "string" || !UUID_REGEX.test(resultado.id)) {
-        throw new Error("O servidor confirmou o envio, mas retornou uma confirmação inválida.");
+      const resultado = (await resposta.json().catch(() => null)) as
+        | RespostaUploadAnexo
+        | null;
+
+      if (
+        !resultado ||
+        resultado.sucesso !== true ||
+        typeof resultado.id !== "string" ||
+        !UUID_REGEX.test(resultado.id)
+      ) {
+        throw new Error(
+          "O servidor confirmou o envio, mas retornou uma confirmação inválida."
+        );
       }
 
-      // A mensagem só entra na interface depois do HTTP 201 e da leitura do histórico persistido.
       const historicoAtualizado = await carregarMensagens();
+
       if (!historicoAtualizado?.some((mensagem) => mensagem.id === resultado.id)) {
-        setAviso("O servidor recebeu o anexo, mas ele ainda não apareceu no histórico. Atualize a conversa em instantes.");
+        setAviso(
+          "O servidor recebeu o anexo, mas ele ainda não apareceu no histórico. Atualize a conversa em instantes."
+        );
       } else {
         setConfirmacao("Anexo enviado com sucesso.");
       }
     } catch (error) {
       setConfirmacao("");
-      setAviso(error instanceof Error ? error.message : "Não foi possível enviar o anexo.");
+
+      setAviso(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível enviar o anexo."
+      );
     } finally {
       setEnviando(false);
     }
@@ -584,6 +646,7 @@ const somenteLeitura =
     if (!token || !msg.arquivo || enviando) return;
 
     const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+
     if (!base) {
       setAviso("A API não está configurada.");
       return;
@@ -591,32 +654,46 @@ const somenteLeitura =
 
     try {
       setAviso("");
-      const resposta = await fetch(`${base}/api/attachments/${encodeURIComponent(msg.id)}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
+
+      const resposta = await fetch(
+        `${base}/api/attachments/${encodeURIComponent(msg.id)}`,
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }
+      );
 
       if (!resposta.ok) {
         throw new Error(mensagemErroAnexo(resposta.status, "baixar"));
       }
 
       const blob = await resposta.blob();
-      const mimeEsperado = msg.arquivo.tipo === "pdf" ? "application/pdf" : "image/jpeg";
+
+      const mimeEsperado =
+        msg.arquivo.tipo === "pdf" ? "application/pdf" : "image/jpeg";
+
       if (blob.type && blob.type !== mimeEsperado) {
         throw new Error("O servidor retornou um formato de arquivo inesperado.");
       }
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
+
       link.href = url;
       link.download = msg.arquivo.nome;
+
       document.body.appendChild(link);
       link.click();
       link.remove();
+
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
-      setAviso(error instanceof Error ? error.message : "Não foi possível baixar o anexo.");
+      setAviso(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível baixar o anexo."
+      );
     }
   }
 
@@ -706,6 +783,7 @@ const somenteLeitura =
               <p className="truncate text-base font-bold leading-tight">
                 {nome}
               </p>
+
               <p className="text-xs font-medium text-emerald-300">
                 {tipoConversa === "grupo"
                   ? `${participantes.length} participantes`
@@ -731,10 +809,14 @@ const somenteLeitura =
             >
               ×
             </button>
+
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={urlsImagens[imagemAmpliada]}
-              alt={msgs.find((mensagem) => mensagem.id === imagemAmpliada)?.arquivo?.nome || "Imagem ampliada"}
+              alt={
+                msgs.find((mensagem) => mensagem.id === imagemAmpliada)?.arquivo?.nome ||
+                "Imagem ampliada"
+              }
               className="max-h-full max-w-full object-contain"
               onClick={(e) => e.stopPropagation()}
             />
@@ -880,6 +962,7 @@ const somenteLeitura =
             const mensagemRespondida = msgs.find(
               (mensagem) => mensagem.id === m.respostaA
             );
+
             const mostrarData =
               indice === 0 || msgs[indice - 1].dataChave !== m.dataChave;
 
@@ -894,152 +977,171 @@ const somenteLeitura =
                 )}
 
                 <div
-                className={`flex w-full min-w-0 ${
-                  m.minha ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div className="relative min-w-0 max-w-[85%] md:max-w-[70%]">
-                  <div
-                    className={`break-words rounded-2xl px-3.5 py-2.5 text-[15px] font-medium shadow-sm ${
-                      m.minha
-                        ? "rounded-br-sm bg-[#3d3fe8] text-white"
-                        : "rounded-bl-sm bg-white text-slate-800"
-                    }`}
-                  >
-                    {mensagemRespondida && (
-                      <div className="mb-2 rounded-lg border-l-4 border-sky-400 bg-black/10 px-2 py-1.5">
-                        <p className="text-[11px] font-bold">
-                          Respondendo mensagem
-                        </p>
-                        <p className="truncate text-xs opacity-80">
-                          {textoDaMensagem(mensagemRespondida)}
-                        </p>
-                      </div>
-                    )}
-
-                    {m.texto && <p>{m.texto}</p>}
-
-                    {m.arquivo?.tipo === "pdf" && (
-                      <button
-                        type="button"
-                        onClick={() => void baixarArquivo(m)}
-                        className="flex min-w-0 items-center gap-2 text-left"
-                      >
-                        <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white">
-                          PDF
-                        </div>
-                        <div className="min-w-0">
-                          <p className="break-all text-sm font-bold">{m.arquivo.nome}</p>
-                          <p className="text-xs opacity-70">{m.arquivo.tamanho} · Baixar documento</p>
-                        </div>
-                      </button>
-                    )}
-
-                    {m.arquivo?.tipo === "imagem" && (
-                      <div className="min-w-0 space-y-2">
-                        {urlsImagens[m.id] ? (
-                          <button
-                            type="button"
-                            onClick={() => setImagemAmpliada(m.id)}
-                            className="block max-w-full overflow-hidden rounded-lg"
-                            aria-label={`Ampliar imagem ${m.arquivo.nome}`}
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={urlsImagens[m.id]}
-                              alt={m.arquivo.nome}
-                              className="max-h-72 max-w-full rounded-lg object-contain"
-                            />
-                          </button>
-                        ) : (
-                          <p className="text-xs opacity-70">
-                            {falhasImagens[m.id] ? "Não foi possível carregar a imagem." : "Carregando imagem..."}
-                          </p>
-                        )}
-                        <div className="flex items-center justify-between gap-3 text-xs">
-                          <span className="min-w-0 break-all font-semibold">{m.arquivo.nome} · {m.arquivo.tamanho}</span>
-                          <button type="button" onClick={() => void baixarArquivo(m)} className="shrink-0 underline">Baixar</button>
-                        </div>
-                      </div>
-                    )}
-
-                    <p
-                      className={`mt-1 text-right text-[11px] ${
-                        m.minha ? "text-white/70" : "text-slate-400"
+                  className={`flex w-full min-w-0 ${
+                    m.minha ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div className="relative min-w-0 max-w-[85%] md:max-w-[70%]">
+                    <div
+                      className={`break-words rounded-2xl px-3.5 py-2.5 text-[15px] font-medium shadow-sm ${
+                        m.minha
+                          ? "rounded-br-sm bg-[#3d3fe8] text-white"
+                          : "rounded-bl-sm bg-white text-slate-800"
                       }`}
                     >
-                      {m.hora}
-                      {m.minha && <Ticks status={m.status} />}
-                    </p>
-                  </div>
+                      {mensagemRespondida && (
+                        <div className="mb-2 rounded-lg border-l-4 border-sky-400 bg-black/10 px-2 py-1.5">
+                          <p className="text-[11px] font-bold">
+                            Respondendo mensagem
+                          </p>
 
-                  {m.reacoes.length > 0 && (
-                    <div className="mt-1 flex max-w-full flex-wrap gap-1">
-                      {m.reacoes.map((emoji, indice) => (
-                        <button
-                          key={`${emoji}-${indice}`}
-                          type="button"
-                          disabled={somenteLeitura}
-                          onClick={() => reagir(m.id, emoji)}
-                          className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs shadow-sm disabled:cursor-default"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                          <p className="truncate text-xs opacity-80">
+                            {textoDaMensagem(mensagemRespondida)}
+                          </p>
+                        </div>
+                      )}
 
-                  {!somenteLeitura && (
-                    <div className="mt-1 flex items-center gap-3 px-1">
-                      <button
-                        type="button"
-                        onClick={() => iniciarResposta(m)}
-                        className="text-[11px] font-semibold text-slate-500 hover:text-[#3d3fe8]"
-                      >
-                        Responder
-                      </button>
+                      {m.texto && <p>{m.texto}</p>}
 
-                      <div className="relative">
+                      {m.arquivo?.tipo === "pdf" && (
                         <button
                           type="button"
-                          title="Reagir à mensagem"
-                          aria-label="Reagir à mensagem"
-                          onClick={() =>
-                            setReacaoAberta(
-                              reacaoAberta === m.id ? null : m.id
-                            )
-                          }
-                          className="text-sm text-slate-500 transition hover:scale-110"
+                          onClick={() => void baixarArquivo(m)}
+                          className="flex min-w-0 items-center gap-2 text-left"
                         >
-                          😊
-                        </button>
-
-                        {reacaoAberta === m.id && (
-                          <div
-                            className={`absolute bottom-7 z-20 flex max-w-[calc(100vw-2rem)] gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-lg ${
-                              m.minha ? "right-0" : "left-0"
-                            }`}
-                          >
-                            {emojis.map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                title={`Reagir com ${emoji}`}
-                                onClick={() => {
-                                  reagir(m.id, emoji);
-                                  setReacaoAberta(null);
-                                }}
-                                className="shrink-0 text-lg transition hover:scale-125"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
+                          <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white">
+                            PDF
                           </div>
-                        )}
-                      </div>
+
+                          <div className="min-w-0">
+                            <p className="break-all text-sm font-bold">
+                              {m.arquivo.nome}
+                            </p>
+
+                            <p className="text-xs opacity-70">
+                              {m.arquivo.tamanho} · Baixar documento
+                            </p>
+                          </div>
+                        </button>
+                      )}
+
+                      {m.arquivo?.tipo === "imagem" && (
+                        <div className="min-w-0 space-y-2">
+                          {urlsImagens[m.id] ? (
+                            <button
+                              type="button"
+                              onClick={() => setImagemAmpliada(m.id)}
+                              className="block max-w-full overflow-hidden rounded-lg"
+                              aria-label={`Ampliar imagem ${m.arquivo.nome}`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={urlsImagens[m.id]}
+                                alt={m.arquivo.nome}
+                                className="max-h-72 max-w-full rounded-lg object-contain"
+                              />
+                            </button>
+                          ) : (
+                            <p className="text-xs opacity-70">
+                              {falhasImagens[m.id]
+                                ? "Não foi possível carregar a imagem."
+                                : "Carregando imagem..."}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <span className="min-w-0 break-all font-semibold">
+                              {m.arquivo.nome} · {m.arquivo.tamanho}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => void baixarArquivo(m)}
+                              className="shrink-0 underline"
+                            >
+                              Baixar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <p
+                        className={`mt-1 text-right text-[11px] ${
+                          m.minha ? "text-white/70" : "text-slate-400"
+                        }`}
+                      >
+                        {m.hora}
+                        {m.minha && <Ticks status={m.status} />}
+                      </p>
                     </div>
-                  )}
-                </div>
+
+                    {m.reacoes.length > 0 && (
+                      <div className="mt-1 flex max-w-full flex-wrap gap-1">
+                        {m.reacoes.map((emoji, indice) => (
+                          <button
+                            key={`${emoji}-${indice}`}
+                            type="button"
+                            disabled={somenteLeitura}
+                            onClick={() => reagir(m.id, emoji)}
+                            className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs shadow-sm disabled:cursor-default"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {!somenteLeitura && (
+                      <div className="mt-1 flex items-center gap-3 px-1">
+                        <button
+                          type="button"
+                          onClick={() => iniciarResposta(m)}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-[#3d3fe8]"
+                        >
+                          Responder
+                        </button>
+
+                        <div className="relative">
+                          <button
+                            type="button"
+                            title="Reagir à mensagem"
+                            aria-label="Reagir à mensagem"
+                            onClick={() =>
+                              setReacaoAberta(
+                                reacaoAberta === m.id ? null : m.id
+                              )
+                            }
+                            className="text-sm text-slate-500 transition hover:scale-110"
+                          >
+                            😊
+                          </button>
+
+                          {reacaoAberta === m.id && (
+                            <div
+                              className={`absolute bottom-7 z-20 flex max-w-[calc(100vw-2rem)] gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-lg ${
+                                m.minha ? "right-0" : "left-0"
+                              }`}
+                            >
+                              {emojis.map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  title={`Reagir com ${emoji}`}
+                                  onClick={() => {
+                                    void reagir(m.id, emoji);
+                                    setReacaoAberta(null);
+                                  }}
+                                  className="shrink-0 text-lg transition hover:scale-125"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Fragment>
             );
@@ -1067,13 +1169,20 @@ const somenteLeitura =
             )}
 
             {confirmacao && (
-              <p className="mb-2 text-center text-xs font-semibold text-emerald-600" role="status">
+              <p
+                className="mb-2 text-center text-xs font-semibold text-emerald-600"
+                role="status"
+              >
                 {confirmacao}
               </p>
             )}
 
             {enviando && (
-              <p className="mb-2 flex items-center justify-center gap-2 text-xs font-semibold text-[#3d3fe8]" role="status" aria-live="polite">
+              <p
+                className="mb-2 flex items-center justify-center gap-2 text-xs font-semibold text-[#3d3fe8]"
+                role="status"
+                aria-live="polite"
+              >
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#3d3fe8] border-t-transparent" />
                 Enviando...
               </p>
@@ -1085,6 +1194,7 @@ const somenteLeitura =
                   <p className="text-xs font-bold text-[#3d3fe8]">
                     Respondendo mensagem
                   </p>
+
                   <p className="truncate text-xs text-slate-600">
                     {textoDaMensagem(respondendo)}
                   </p>
@@ -1123,7 +1233,7 @@ const somenteLeitura =
               <input
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && enviarTexto()}
+                onKeyDown={(e) => e.key === "Enter" && void enviarTexto()}
                 disabled={!horarioPermitido || enviando}
                 placeholder={
                   horarioPermitido
@@ -1135,7 +1245,7 @@ const somenteLeitura =
 
               <button
                 type="button"
-                onClick={enviarTexto}
+                onClick={() => void enviarTexto()}
                 disabled={!horarioPermitido || !texto.trim() || enviando}
                 aria-label="Enviar"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#3d3fe8] text-lg text-white transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
