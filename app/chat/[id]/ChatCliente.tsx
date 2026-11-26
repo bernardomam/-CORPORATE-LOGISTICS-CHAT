@@ -39,6 +39,7 @@ type Msg = {
 type MensagemBackend = {
   id: string;
   content?: string;
+  type?: string;
   text?: string;
   senderId?: string;
   userId?: string;
@@ -299,10 +300,25 @@ const somenteLeitura =
             ? obterRotuloData(dataConvertida)
             : { chave: "sem-data", rotulo: "Data não informada" };
 
+          let anexo: Msg["arquivo"] = undefined;
+          if (mensagem.type === "FILE" || mensagem.type === "IMAGE") {
+            try {
+              const meta = JSON.parse(mensagem.content || "");
+              if (typeof meta.nome === "string" && typeof meta.size === "number") {
+                anexo = {
+                  nome: meta.nome,
+                  tamanho: (meta.size / 1024).toFixed(1) + " KB",
+                  tipo: mensagem.type === "FILE" ? "pdf" : "imagem",
+                };
+              }
+            } catch {}
+          }
+
           return {
+            arquivo: anexo,
             id: String(mensagem.id),
             minha: String(remetenteId) === String(usuario?.id),
-            texto: mensagem.content ?? mensagem.text ?? "",
+            texto: anexo ? "" : mensagem.content ?? mensagem.text ?? "",
             hora: dataConvertida
               ? new Intl.DateTimeFormat("pt-BR", {
                   hour: "2-digit",
@@ -403,18 +419,45 @@ const somenteLeitura =
     }
   }
 
-  function escolherArquivo(e: React.ChangeEvent<HTMLInputElement>) {
-    if (somenteLeitura) return;
-
+  async function escolherArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0];
-
-    if (!arquivo) return;
-
-    setAviso(
-      "O envio de arquivos ainda depende da implementação da rota de upload no servidor."
-    );
-
     e.target.value = "";
+    if (!arquivo || somenteLeitura || enviando || !token) return;
+    if (!["application/pdf", "image/jpeg"].includes(arquivo.type) || arquivo.size > 5 * 1024 * 1024 || !arquivo.size) {
+      setAviso("Selecione um PDF ou JPEG de até 5 MB.");
+      return;
+    }
+    setEnviando(true);
+    try {
+      const base = process.env.NEXT_PUBLIC_API_URL;
+      if (!base) throw new Error("API não configurada.");
+      const rota = tipoConversa === "grupo" ? "grupo" : "privado";
+      const res = await fetch(base + "/api/attachments/" + rota + "/" + encodeURIComponent(id) + "?nome=" + encodeURIComponent(arquivo.name), {
+        method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": arquivo.type }, body: arquivo
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.mensagem || "Falha ao enviar arquivo.");
+      await carregarMensagens();
+    } catch (error) {
+      setAviso(error instanceof Error ? error.message : "Falha ao enviar arquivo.");
+    } finally { setEnviando(false); }
+  }
+
+  async function baixarArquivo(msg: Msg) {
+    if (!token || !msg.arquivo) return;
+    try {
+      const base = process.env.NEXT_PUBLIC_API_URL;
+      if (!base) throw new Error("API não configurada.");
+      const res = await fetch(base + "/api/attachments/" + encodeURIComponent(msg.id), { headers: { Authorization: "Bearer " + token }, cache: "no-store" });
+      if (!res.ok) throw new Error("Não foi possível acessar o arquivo.");
+      const url = URL.createObjectURL(await res.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = msg.arquivo.nome;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setAviso(error instanceof Error ? error.message : "Falha ao baixar arquivo.");
+    }
   }
 
   async function reagir(msgId: string, emoji: string) {
@@ -691,9 +734,9 @@ const somenteLeitura =
                     {m.texto && <p>{m.texto}</p>}
 
                     {m.arquivo && (
-                      <div className="flex min-w-0 items-center gap-2">
+                      <button type="button" onClick={() => void baixarArquivo(m)} className="flex min-w-0 items-center gap-2 text-left">
                         <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white">
-                          PDF
+                          {m.arquivo.tipo === "pdf" ? "PDF" : "JPEG"}
                         </div>
 
                         <div className="min-w-0">
@@ -701,10 +744,10 @@ const somenteLeitura =
                             {m.arquivo.nome}
                           </p>
                           <p className="text-xs opacity-70">
-                            {m.arquivo.tamanho}
+                            {m.arquivo.tamanho} · Baixar
                           </p>
                         </div>
-                      </div>
+                      </button>
                     )}
 
                     <p
