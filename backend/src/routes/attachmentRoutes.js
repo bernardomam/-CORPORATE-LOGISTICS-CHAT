@@ -16,7 +16,7 @@ export function validarArquivo(bytes, mime) {
 }
 async function storage(path, options={}) {
     const base=process.env.SUPABASE_URL?.trim();
-    const key=process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    const key=process.env.SUPABASE_SECRET_KEY?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
     if (!base || !key) fail(503,'Armazenamento não configurado.');
     let origin;
     try {
@@ -24,9 +24,18 @@ async function storage(path, options={}) {
         if (url.protocol!=='https:' || url.username || url.password || url.search || url.hash || url.pathname!=='/') throw new Error();
         origin=url.origin;
     } catch { fail(503,'URL do armazenamento inválida.'); }
+    const headers={...options.headers,apikey:key};
+    if (key.startsWith('sb_secret_')) {
+        // O gateway Supabase autentica chaves opacas pelo cabeçalho apikey.
+    } else if (/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key)) {
+        headers.Authorization='Bearer '+key;
+    } else {
+        console.error('Anexos: formato de credencial Storage inválido');
+        fail(503,'Credencial de armazenamento inválida.');
+    }
     let response;
     try {
-        response=await fetch(origin+'/storage/v1/object/'+path,{...options,signal:AbortSignal.timeout(15000),headers:{apikey:key,Authorization:'Bearer '+key,...options.headers}});
+        response=await fetch(origin+'/storage/v1/object/'+path,{...options,signal:AbortSignal.timeout(15000),headers});
     } catch {
         console.error('Anexos: falha de conexão com Storage');
         fail(502,'Falha na conexão com armazenamento.');
