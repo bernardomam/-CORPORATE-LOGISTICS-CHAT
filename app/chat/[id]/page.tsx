@@ -1,19 +1,40 @@
+
 import { Suspense } from "react";
 import ChatCliente from "./ChatCliente";
 
-async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
+async function Conteudo({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tipo?: string }>;
+}) {
   const { id } = await params;
-  return <ChatCliente id={id} />;
+  const { tipo } = await searchParams;
+
+  const tipoConversa = tipo === "grupo" ? "grupo" : "privada";
+
+  return (
+    <ChatCliente
+      id={id}
+      tipoConversa={tipoConversa}
+    />
+  );
 }
 
 export default function ChatPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tipo?: string }>;
 }) {
   return (
     <Suspense fallback={null}>
-      <Conteudo params={params} />
+      <Conteudo
+        params={params}
+        searchParams={searchParams}
+      />
     </Suspense>
   );
 }

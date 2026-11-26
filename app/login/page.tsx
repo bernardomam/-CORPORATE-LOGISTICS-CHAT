@@ -28,7 +28,7 @@ export default function LoginPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email, password: senha }),
+          body: JSON.stringify({ email, senha }),
         }
       );
 
@@ -38,20 +38,25 @@ export default function LoginPage() {
         throw new Error(dados.mensagem || "Não foi possível realizar o login.");
       }
 
-      if (
-        !dados.token ||
-        !dados.usuario?.id ||
-        !["USER", "IT_ADMIN"].includes(dados.usuario.role)
-      ) {
-        throw new Error("Resposta de autenticação inválida.");
-      }
+     if (
+  !dados.token ||
+  !dados.usuario?.id ||
+  !dados.usuario?.name ||
+  !dados.usuario?.email ||
+  !["USER", "IT_ADMIN"].includes(dados.usuario.role)
+) {
+  throw new Error("Resposta de autenticação inválida.");
+}
 
-      autenticar({
-        id: dados.usuario.id,
-        name: dados.usuario.name,
-        email: dados.usuario.email,
-        role: dados.usuario.role,
-      });
+      autenticar(
+        {
+          id: dados.usuario.id,
+          name: dados.usuario.name,
+          email: dados.usuario.email,
+          role: dados.usuario.role,
+        },
+        dados.token
+      );
 
       sessionStorage.setItem("callzup_login_pendente", "true");
 
@@ -121,10 +126,19 @@ export default function LoginPage() {
               onClick={() => setMostrarSenha(!mostrarSenha)}
               aria-label="Mostrar ou ocultar senha"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              {mostrarSenha ? (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 3l18 18" />
+    <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+    <path d="M9.9 5.2A10.5 10.5 0 0 1 12 5c6.5 0 10 7 10 7a15.5 15.5 0 0 1-3.1 3.8" />
+    <path d="M6.6 6.6C3.9 8.3 2 12 2 12s3.5 7 10 7c1.1 0 2.1-.2 3-.5" />
+  </svg>
+) : (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+)}
             </button>
           </label>
 
