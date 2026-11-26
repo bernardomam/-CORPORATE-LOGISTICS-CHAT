@@ -5,18 +5,18 @@ import { executarComContextoRLS } from '../config/rlsContext.js';
 import { verificarHorarioFuncionamento } from '../utils/horarioFuncionamento.js';
 
 const router = express.Router();
-const MAX = 5 * 1024 * 1024;
+const MAX = 4 * 1024 * 1024;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function fail(status, message) { throw Object.assign(new Error(message), {status}); }
 export function validarArquivo(bytes, mime) {
-    if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > MAX) fail(400,'Arquivo inválido ou acima de 5 MB.');
+    if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > MAX) fail(400,'Arquivo inválido ou acima de 4 MB.');
     const pdf = bytes.subarray(0,5).toString() === '%PDF-' && bytes.subarray(-1024).includes(Buffer.from('%%EOF'));
     const jpeg = bytes.length >= 4 && bytes[0]===255 && bytes[1]===216 && bytes[2]===255 && bytes.at(-2)===255 && bytes.at(-1)===217;
     if (!(mime==='application/pdf' && pdf || mime==='image/jpeg' && jpeg)) fail(415,'Somente PDF e JPEG válidos.');
 }
 async function storage(path, options={}) {
     const base=process.env.SUPABASE_URL?.trim();
-    const key=process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    const key=process.env.SUPABASE_SECRET_KEY?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
     if (!base || !key) fail(503,'Armazenamento não configurado.');
     let origin;
     try {
@@ -24,9 +24,18 @@ async function storage(path, options={}) {
         if (url.protocol!=='https:' || url.username || url.password || url.search || url.hash || url.pathname!=='/') throw new Error();
         origin=url.origin;
     } catch { fail(503,'URL do armazenamento inválida.'); }
+    const headers={...options.headers,apikey:key};
+    if (key.startsWith('sb_secret_')) {
+        // O gateway Supabase autentica chaves opacas pelo cabeçalho apikey.
+    } else if (/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key)) {
+        headers.Authorization='Bearer '+key;
+    } else {
+        console.error('Anexos: formato de credencial Storage inválido');
+        fail(503,'Credencial de armazenamento inválida.');
+    }
     let response;
     try {
-        response=await fetch(origin+'/storage/v1/object/'+path,{...options,signal:AbortSignal.timeout(15000),headers:{apikey:key,Authorization:'Bearer '+key,...options.headers}});
+        response=await fetch(origin+'/storage/v1/object/'+path,{...options,signal:AbortSignal.timeout(15000),headers});
     } catch {
         console.error('Anexos: falha de conexão com Storage');
         fail(502,'Falha na conexão com armazenamento.');

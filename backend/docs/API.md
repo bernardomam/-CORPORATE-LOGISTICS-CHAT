@@ -596,3 +596,84 @@ Este é o documento central. Atualize-o junto com qualquer alteração de rota, 
 ### PATCH /api/users/{id}/password
 
 JWT de TI ativa. Redefine senha de funcionário ativo da mesma empresa e revoga suas sessões. Corpo: `{"newPassword":"nova-senha-exemplo"}`. 200, 400, 401, 403, 404, 429 ou 500.
+
+## Fotos de perfil
+
+Todas as rotas exigem autenticação JWT:
+
+Authorization: Bearer TOKEN
+
+Disponíveis para funcionários e administradores de TI,
+respeitando o horário de funcionamento do CallZUP.
+
+### PUT /api/users/me/avatar
+
+Envia ou substitui a foto do usuário autenticado.
+
+- Corpo: arquivo binário, sem JSON, Base64 ou FormData.
+- Content-Type: image/jpeg, image/png ou image/webp.
+- Tamanho máximo: 2097152 bytes (2 MiB).
+- Conversão automática para WebP.
+- Resolução máxima: 512 x 512 pixels.
+- Armazenamento privado no Supabase.
+- Não permite alterar a foto de outro usuário.
+
+Resposta HTTP 200:
+
+```json
+{
+  "sucesso": true,
+  "mensagem": "Foto atualizada.",
+  "avatarUrl": "/api/users/UUID_DO_USUARIO/avatar"
+}
+```
+
+### GET /api/users/{id}/avatar
+
+Consulta a foto de um usuário ativo da mesma empresa,
+respeitando as permissões RLS.
+
+Resposta HTTP 200:
+
+- Content-Type: image/webp.
+- Corpo: imagem binária.
+- Cache-Control: private, no-store.
+
+Retorna HTTP 404 quando a foto ou o usuário não está
+disponível para o solicitante.
+
+O frontend deve utilizar fetch autenticado, converter
+a resposta em Blob e gerar uma URL temporária.
+Quando não houver foto, deve exibir o avatar padrão.
+
+### DELETE /api/users/me/avatar
+
+Remove a foto do usuário autenticado.
+
+Não permite excluir a foto de outro usuário.
+
+Resposta HTTP 200:
+
+```json
+{
+  "sucesso": true,
+  "mensagem": "Foto removida."
+}
+```
+
+### Códigos de erro das fotos
+
+| Código | Descrição |
+|--------|-----------|
+| 400 | Arquivo vazio ou inválido |
+| 401 | Sessão inválida ou expirada |
+| 403 | Acesso proibido |
+| 404 | Foto ou usuário não encontrado |
+| 413 | Arquivo acima de 2 MiB |
+| 415 | Imagem inválida ou corrompida |
+| 500 | Erro interno |
+| 502 | Falha de comunicação com Storage |
+| 503 | Storage indisponível ou não configurado |
+
+As credenciais administrativas do Supabase devem
+permanecer exclusivamente no backend.

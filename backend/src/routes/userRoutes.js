@@ -1,3 +1,4 @@
+import avatarRoutes from './avatarRoutes.js';
 
 import { Router } from 'express';
 
@@ -28,6 +29,7 @@ const router = Router();
 // 3. Empresa ativa
 // 4. Perfil IT_ADMIN
 router.get('/colegas',autenticarToken,async(req,res,next)=>{try{const usuarios=await listarColegas(req.user);return res.json({sucesso:true,total:usuarios.length,usuarios});}catch(e){return responderFalha(e,res,next);}});
+router.use(avatarRoutes);
 router.use(autenticarToken, exigirTI);
 
 // ==========================================
