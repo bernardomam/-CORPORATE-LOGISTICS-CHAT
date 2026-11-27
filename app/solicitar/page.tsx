@@ -1,26 +1,48 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import BarraInferior from "../comp/BarraInferior";
 import { useAuth } from "../contextos/AuthContext";
 import { api } from "../lib/api";
 
-const admins = [
-  { id: "", nome: "João Victor (TI)" },
-  { id: "", nome: "João Gabriel (TI)" },
-];
+type Admin = { id: string; name: string; role: string };
+type Solicitacao = { id: string; status: string; requester?: { name: string }; requestedUser?: { name: string } };
 
 export default function SolicitarPage() {
   const { token } = useAuth();
 
+  const [admins, setAdmins] = useState<Admin[]>([]);
+  const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erroHistorico, setErroHistorico] = useState("");
   const [escolhido, setEscolhido] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
 
+  useEffect(() => {
+    if (!token) return;
+    let cancelado = false;
+    setCarregando(true);
+    setAdmins([]);
+    setEscolhido("");
+    setSolicitacoes([]);
+    void api("/api/users/colegas", { method: "GET", token }).then(dados => {
+      if (cancelado) return;
+      if (!Array.isArray(dados?.usuarios)) throw new Error("Lista de administradores inválida.");
+      setAdmins(dados.usuarios.filter((u: Admin) => u.role === "IT_ADMIN"));
+    }).catch(error => {
+      if (!cancelado) setErro(error instanceof Error ? error.message : "Não foi possível carregar os administradores.");
+    }).finally(() => { if (!cancelado) setCarregando(false); });
+    void api("/api/chat-requests/minhas", { method: "GET", token }).then(dados => {
+      if (!cancelado && Array.isArray(dados?.solicitacoes)) setSolicitacoes(dados.solicitacoes);
+    }).catch(() => { if (!cancelado) setErroHistorico("Não foi possível carregar o histórico."); });
+    return () => { cancelado = true; };
+  }, [token]);
+
   async function enviar() {
-    const admin = admins.find((item) => item.nome === escolhido);
+    const admin = admins.find((item) => item.id === escolhido);
 
     if (!admin) return;
 
@@ -39,14 +61,15 @@ export default function SolicitarPage() {
       setErro("");
       setMensagem("");
 
-      await api("/api/chat-requests", {
+      const resultado = await api("/api/chat-requests", {
         method: "POST",
         token,
         body: JSON.stringify({
-          adminId: admin.id,
+          requestedUserId: admin.id,
         }),
       });
 
+      if (resultado?.solicitacao) setSolicitacoes(anteriores => [resultado.solicitacao, ...anteriores]);
       setMensagem("Solicitação enviada com sucesso!");
       setEscolhido("");
     } catch (error) {
@@ -71,22 +94,24 @@ export default function SolicitarPage() {
           Escolha um administrador da TI. A solicitação precisa ser aprovada.
         </p>
 
+        {carregando && <p className="mt-4 text-sm text-slate-500">Carregando administradores...</p>}
+        {!carregando && admins.length === 0 && <p className="mt-4 text-sm text-slate-500">Nenhum administrador disponível.</p>}
         <ul className="mt-4 space-y-2">
           {admins.map((admin) => (
-            <li key={admin.nome}>
+            <li key={admin.id}>
               <button
                 onClick={() => {
-                  setEscolhido(admin.nome);
+                  setEscolhido(admin.id);
                   setErro("");
                   setMensagem("");
                 }}
                 className={`w-full rounded-xl border px-4 py-3 text-left text-[15px] font-bold transition active:scale-95 ${
-                  escolhido === admin.nome
+                  escolhido === admin.id
                     ? "border-[#3d3fe8] bg-indigo-50 text-[#3d3fe8]"
                     : "border-slate-200 text-[#1e2a78]"
                 }`}
               >
-                {admin.nome}
+                {admin.name}
               </button>
             </li>
           ))}
@@ -116,10 +141,16 @@ export default function SolicitarPage() {
           Minhas solicitações
         </h2>
 
-        <p className="mt-2 text-sm text-slate-500">
-          O histórico ficará disponível quando o backend oferecer uma rota de
-          consulta das solicitações do funcionário.
-        </p>
+        {erroHistorico && <p className="mt-2 text-sm text-red-600">{erroHistorico}</p>}
+        {!erroHistorico && solicitacoes.length === 0 && <p className="mt-2 text-sm text-slate-500">Nenhuma solicitação registrada.</p>}
+        <ul className="mt-2 space-y-2">
+          {solicitacoes.map(item => (
+            <li key={item.id} className="rounded-xl border border-slate-200 p-3 text-sm">
+              <p>{item.requester?.name} → {item.requestedUser?.name}</p>
+              <p className="font-semibold">{({PENDING: "Pendente", APPROVED: "Aprovada", REJECTED: "Rejeitada"} as Record<string,string>)[item.status] || item.status}</p>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <BarraInferior ativo="Solicitar" />
