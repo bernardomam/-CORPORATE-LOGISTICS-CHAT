@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
+import AvatarContato from "../../comp/AvatarContato";
 import { dentroDoHorario } from "../../lib/horario";
 import { useAuth } from "../../contextos/AuthContext";
 import { api } from "../../lib/api";
@@ -142,12 +143,6 @@ function CartaoPerfil({
 }) {
   const nome = participante.nome || "Nome do funcionário";
 
-  const iniciais = nome
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((parte) => parte.charAt(0).toUpperCase())
-    .join("");
 
   const tipoConta =
     participante.role === "IT_ADMIN"
@@ -160,18 +155,7 @@ function CartaoPerfil({
     <div className="p-5">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col items-center text-center">
-          {participante.foto ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={participante.foto}
-              alt={`Foto de ${nome}`}
-              className="h-24 w-24 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-indigo-100 text-3xl font-bold text-indigo-700">
-              {iniciais || "U"}
-            </div>
-          )}
+          <AvatarContato id={participante.id} nome={nome} className="flex h-24 w-24 items-center justify-center rounded-full bg-indigo-100 text-3xl font-bold text-indigo-700" />
 
           <h3 className="mt-4 text-xl font-bold text-slate-800">
             {nome}
@@ -699,18 +683,7 @@ export default function ChatCliente({
             onClick={abrirInformacoes}
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
           >
-            {tipoConversa === "privada" && contato?.foto ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={contato.foto}
-                alt={nome}
-                className="h-10 w-10 shrink-0 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-base font-bold">
-                {nome.charAt(0)}
-              </div>
-            )}
+            <AvatarContato id={tipoConversa === "privada" ? contato?.id : undefined} nome={nome} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-base font-bold" />
 
             <div className="min-w-0">
               <p className="truncate text-base font-bold leading-tight">
@@ -831,18 +804,7 @@ export default function ChatCliente({
                         }
                         className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:bg-slate-100"
                       >
-                        {participante.foto ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={participante.foto}
-                            alt={participante.nome}
-                            className="h-10 w-10 shrink-0 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 font-bold text-white">
-                            {participante.nome.charAt(0)}
-                          </div>
-                        )}
+                        <AvatarContato id={participante.id} nome={participante.nome} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 font-bold text-white" />
 
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-medium text-slate-700">
