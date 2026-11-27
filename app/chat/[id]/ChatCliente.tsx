@@ -239,29 +239,32 @@ export default function ChatCliente({
 
   const isAdminTI = usuario?.role === "IT_ADMIN";
 
-  // Administradores só escrevem em grupos dos quais são membros ativos.
-  // A API de grupos próprios confirma a participação; o backend revalida cada envio.
-  const [grupoAdminAutorizado, setGrupoAdminAutorizado] = useState<{
-    id: string; token: string;
+  // Administradores escrevem apenas em conversas das quais participam.
+  // As APIs de conversas próprias confirmam a participação; o backend revalida cada envio.
+  const [conversaAdminAutorizada, setConversaAdminAutorizada] = useState<{
+    id: string; token: string; tipo: "grupo" | "privada";
   } | null>(null);
   useEffect(() => {
-    if (!isAdminTI || tipoConversa !== "grupo" || !token) return;
+    if (!isAdminTI || !token) return;
     let cancelado = false;
     void (async () => {
       try {
-        const dados = await api("/api/my-groups", { method: "GET", token });
-        const participa = dados?.sucesso === true && Array.isArray(dados.grupos)
-          && dados.grupos.some((grupo: { id: string }) => grupo.id === id);
-        if (!cancelado) setGrupoAdminAutorizado(participa ? { id, token } : null);
+        const rota = tipoConversa === "grupo" ? "/api/my-groups" : "/api/private-chats";
+        const dados = await api(rota, { method: "GET", token });
+        const lista = tipoConversa === "grupo" ? dados?.grupos : dados?.conversas;
+        const participa = dados?.sucesso === true && Array.isArray(lista)
+          && lista.some((conversa: { id: string }) => conversa.id === id);
+        if (!cancelado) setConversaAdminAutorizada(participa ? { id, token, tipo: tipoConversa } : null);
       } catch {
-        if (!cancelado) setGrupoAdminAutorizado(null);
+        if (!cancelado) setConversaAdminAutorizada(null);
       }
     })();
     return () => { cancelado = true; };
   }, [isAdminTI, tipoConversa, id, token]);
   const somenteLeitura = isAdminTI && (
-    tipoConversa !== "grupo" || !token ||
-    grupoAdminAutorizado?.id !== id || grupoAdminAutorizado?.token !== token
+    !token || conversaAdminAutorizada?.id !== id ||
+    conversaAdminAutorizada?.token !== token ||
+    conversaAdminAutorizada?.tipo !== tipoConversa
   );
 
   const contato = participantes[0] ?? null;
