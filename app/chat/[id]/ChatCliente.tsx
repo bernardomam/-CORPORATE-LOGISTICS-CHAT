@@ -21,6 +21,8 @@ type Participante = {
 type Msg = {
   id: string;
   minha: boolean;
+  remetenteNome?: string;
+  remetenteId?: string;
   texto?: string;
   arquivo?: {
     nome: string;
@@ -409,6 +411,8 @@ export default function ChatCliente({
             arquivo: anexo,
             id: String(mensagem.id),
             minha: String(remetenteId) === String(usuario?.id),
+            remetenteNome: mensagem.sender?.name?.trim() || undefined,
+            remetenteId: remetenteId ? String(remetenteId) : undefined,
             texto: anexo ? "" : mensagem.content ?? mensagem.text ?? "",
             hora: dataValida
               ? new Intl.DateTimeFormat("pt-BR", {
@@ -903,6 +907,11 @@ export default function ChatCliente({
                           : "rounded-bl-sm bg-white text-slate-800"
                       }`}
                     >
+                      {tipoConversa === "grupo" && (
+                        <p className={`mb-1 break-words text-xs font-bold ${m.minha ? "text-white/90" : "text-indigo-700"}`}>
+                          {m.remetenteNome || participantes.find(p => p.id === m.remetenteId)?.nome || (m.minha ? "Você" : "Remetente não informado")}
+                        </p>
+                      )}
                       {mensagemRespondida && (
                         <div className="mb-2 rounded-lg border-l-4 border-sky-400 bg-black/10 px-2 py-1.5">
                           <p className="text-[11px] font-bold">
