@@ -35,7 +35,6 @@
     USER: [
       { nome: "Conversas", href: "/conversas", icone: "chat" },
       { nome: "Grupos", href: "/grupos", icone: "grupo" },
-      { nome: "Solicitar", href: "/solicitar", icone: "pedido" },
       { nome: "Perfil", href: "/perfil", icone: "pessoa" },
     ],
     IT_ADMIN: [
