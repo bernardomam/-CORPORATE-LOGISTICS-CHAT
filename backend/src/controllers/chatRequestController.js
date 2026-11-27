@@ -5,8 +5,6 @@ import {
     rejeitarSolicitacao
 } from '../services/chatRequestService.js';
 
-import { notificarSolicitacao } from '../services/emailService.js';
-
 // ==========================================
 // RESPOSTAS DE ERRO
 // ==========================================
@@ -64,22 +62,6 @@ export async function solicitar(req, res) {
             req.user,
             requestedUserId
         );
-
-        // Notificar somente depois de salvar a solicitação.
-        try {
-            await notificarSolicitacao({
-                ...solicitacao,
-                requester: {
-                    ...solicitacao.requester,
-                    email: req.user.email
-                }
-            }, req.user.companyId);
-
-        } catch (error) {
-            console.error('EMAIL_NOTIFICACAO_FALHOU', {
-                solicitacaoId: solicitacao.id
-            });
-        }
 
         return res.status(201).json({
             sucesso: true,
