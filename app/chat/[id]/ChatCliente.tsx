@@ -267,7 +267,30 @@ export default function ChatCliente({
     conversaAdminAutorizada?.tipo !== tipoConversa
   );
 
-  const contato = participantes[0] ?? null;
+  const [contatoCarregado, setContatoCarregado] = useState<{ id: string; token: string; usuarioId: string; contato: Participante } | null>(null);
+  useEffect(() => {
+    if (tipoConversa !== "privada" || !token || !usuario?.id) return;
+    const usuarioId = usuario.id;
+    let cancelado = false;
+    void (async () => {
+      try {
+        const dados = await api("/api/private-chats", { method: "GET", token });
+        const conversa = Array.isArray(dados?.conversas)
+          ? dados.conversas.find((c: { id: string }) => c.id === id)
+          : null;
+        const outro = conversa?.members?.find((m: { user?: { id: string } }) => m.user?.id && m.user.id !== usuarioId)?.user;
+        if (!cancelado) setContatoCarregado(outro ? { id, token, usuarioId, contato: {
+          id: outro.id, nome: outro.name, setor: outro.department?.name ?? undefined,
+          role: outro.role
+        } } : null);
+      } catch {
+        if (!cancelado) setContatoCarregado(null);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [id, tipoConversa, token, usuario?.id]);
+  const contato = (contatoCarregado?.id === id && contatoCarregado?.token === token &&
+    contatoCarregado?.usuarioId === usuario?.id ? contatoCarregado.contato : null) ?? participantes[0] ?? null;
 
   const nome =
     tipoConversa === "privada"
@@ -697,7 +720,7 @@ export default function ChatCliente({
               <p className="text-xs font-medium text-emerald-300">
                 {tipoConversa === "grupo"
                   ? `${participantes.length} participantes`
-                  : "Conversa privada"}
+                  : contato?.setor || "Conversa privada"}
               </p>
             </div>
           </button>
