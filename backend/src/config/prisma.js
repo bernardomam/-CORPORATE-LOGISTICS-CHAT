@@ -9,7 +9,10 @@ if (!connectionString?.trim()) {
 }
 
 const adapter = new PrismaPg({
-    connectionString
+    connectionString,
+    max: 1,
+    idleTimeoutMillis: 3000,
+    connectionTimeoutMillis: 10000
 });
 
 export const prisma = new PrismaClient({
