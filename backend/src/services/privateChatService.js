@@ -188,7 +188,8 @@ export async function listarConversasPrivadas(usuario) {
                             select: {
                                 id: true,
                                 name: true,
-                                role: true
+                                role: true,
+                                department: { select: { name: true } }
                             }
                         }
                     }
