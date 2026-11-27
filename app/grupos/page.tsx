@@ -27,6 +27,7 @@ type GrupoBackend = {
   id: string | number;
   name?: string;
   nome?: string;
+  status?: string;
   members?: {
     userId?: string;
     leftAt?: string | null;
@@ -45,6 +46,7 @@ type GrupoBackend = {
 
 export default function GruposPage() {
   const { usuario, token } = useAuth();
+  const isAdmin = usuario?.role === "IT_ADMIN";
 
   const [busca, setBusca] = useState("");
   const [grupos, setGrupos] = useState<Grupo[]>([]);
@@ -62,7 +64,7 @@ export default function GruposPage() {
     try {
       setAviso("");
 
-      const dados = await api("/api/my-groups", {
+      const dados = await api(isAdmin ? "/api/groups" : "/api/my-groups", {
         method: "GET",
         token,
       });
@@ -81,7 +83,7 @@ export default function GruposPage() {
         throw new Error("Formato de grupos retornado pelo servidor inválido.");
       }
 
-      const gruposFormatados: Grupo[] = lista.map((grupo: GrupoBackend) => ({
+      const gruposFormatados: Grupo[] = lista.filter((grupo: GrupoBackend) => !grupo.status || grupo.status === "ACTIVE").map((grupo: GrupoBackend) => ({
         id: String(grupo.id),
         nome: grupo.name ?? grupo.nome ?? "Grupo",
         participantes: (grupo.members ?? [])
@@ -106,7 +108,7 @@ export default function GruposPage() {
     } finally {
       setCarregando(false);
     }
-  }, [token]);
+  }, [token, isAdmin]);
 
   useEffect(() => {
     carregarGrupos();
@@ -130,7 +132,7 @@ export default function GruposPage() {
             </h1>
 
             <p className="mt-1 text-sm text-slate-400">
-              Seus grupos de comunicação
+              {isAdmin ? "Todos os grupos ativos da empresa" : "Seus grupos de comunicação"}
             </p>
 
             <label className="mt-5 flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-3 transition focus-within:ring-2 focus-within:ring-indigo-200">
@@ -194,7 +196,7 @@ export default function GruposPage() {
                         </p>
 
                         <p className="mt-1 text-[11px] text-slate-400">
-                          {grupo.participantes.length} participantes
+                          {grupo.participantes.length} participantes{isAdmin && !grupo.participantes.some(p => p.id === usuario?.id) ? " · Somente consulta" : ""}
                         </p>
                       </div>
                     </Link>
@@ -216,7 +218,7 @@ export default function GruposPage() {
                         </p>
 
                         <p className="mt-1 text-[11px] text-slate-400">
-                          {grupo.participantes.length} participantes
+                          {grupo.participantes.length} participantes{isAdmin && !grupo.participantes.some(p => p.id === usuario?.id) ? " · Somente consulta" : ""}
                         </p>
                       </div>
                     </button>
@@ -227,7 +229,7 @@ export default function GruposPage() {
               {lista.length === 0 && (
                 <p className="px-5 py-10 text-center text-sm text-slate-400">
                   {grupos.length === 0
-                    ? "Você ainda não participa de nenhum grupo."
+                    ? (isAdmin ? "Nenhum grupo ativo na empresa." : "Você ainda não participa de nenhum grupo.")
                     : "Nenhum grupo encontrado."}
                 </p>
               )}
