@@ -240,7 +240,9 @@ export default function GruposPage() {
         <section className="hidden min-w-0 flex-1 bg-slate-50 md:flex md:h-full">
           {grupoAtual ? (
             <ChatCliente
+              key={grupoAtual.id}
               id={grupoAtual.id}
+              nomeGrupo={grupoAtual.nome}
               tipoConversa="grupo"
               embutido
               onVoltar={() => setGrupoSelecionado(null)}
