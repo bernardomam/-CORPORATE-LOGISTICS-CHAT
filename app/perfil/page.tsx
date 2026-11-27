@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { ChangeEvent } from "react";
 import { useAuth } from "../contextos/AuthContext";
@@ -23,10 +23,14 @@ function CartaoPerfil({
   perfil,
   editavel = false,
   onAlterarFoto,
+  onRemoverFoto,
+  salvando,
 }: {
   perfil: DadosPerfil;
   editavel?: boolean;
   onAlterarFoto?: (event: ChangeEvent<HTMLInputElement>) => void;
+  onRemoverFoto?: () => void;
+  salvando?: boolean;
 }) {
   const nome = perfil.name || "Nome do funcionário";
 
@@ -70,10 +74,15 @@ function CartaoPerfil({
               <input
                 id="fotoPerfil"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={salvando}
                 onChange={onAlterarFoto}
                 className="hidden"
               />
+              {perfil.avatarUrl && (
+                <button type="button" disabled={salvando} onClick={onRemoverFoto} className="mt-2 text-sm text-red-600">Remover foto</button>
+              )}
+              {salvando && <p className="mt-2 text-sm text-slate-500">Salvando...</p>}
             </>
           )}
 
@@ -130,6 +139,9 @@ export default function PerfilPage() {
   const router = useRouter();
 
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const fotoRef = useRef<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [versaoFoto, setVersaoFoto] = useState(0);
   const [dadosPerfil, setDadosPerfil] = useState<DadosPerfil | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
@@ -167,7 +179,7 @@ export default function PerfilPage() {
           id: usuarioBackend.id ?? usuario?.id,
           name: usuarioBackend.name ?? usuario?.name ?? "Nome do funcionário",
           role: usuarioBackend.role ?? usuario?.role ?? "USER",
-          avatarUrl: usuarioBackend.avatarUrl ?? null,
+          avatarUrl: null,
           jobTitle: usuarioBackend.jobTitle ?? null,
           department: usuarioBackend.department ?? null,
         });
@@ -191,29 +203,94 @@ export default function PerfilPage() {
     carregarPerfil();
   }, [token, usuario]);
 
-  function alterarFoto(event: ChangeEvent<HTMLInputElement>) {
+  const perfilId = dadosPerfil?.id ?? usuario?.id;
+
+  useEffect(() => {
+    if (!token || !perfilId) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const resposta = await fetch("/api/users/" + encodeURIComponent(perfilId) + "/avatar", {
+          headers: { Authorization: "Bearer " + token },
+          cache: "no-store", signal: controller.signal,
+        });
+        if (resposta.status === 404) {
+          if (!controller.signal.aborted) {
+            if (fotoRef.current) URL.revokeObjectURL(fotoRef.current);
+            fotoRef.current = null;
+            setFotoPreview(null);
+          }
+          return;
+        }
+        if (!resposta.ok) throw new Error("Não foi possível carregar a foto.");
+        const blob = await resposta.blob();
+        if (controller.signal.aborted) return;
+        const url = URL.createObjectURL(blob);
+        if (fotoRef.current) URL.revokeObjectURL(fotoRef.current);
+        fotoRef.current = url;
+        setFotoPreview(url);
+      } catch {
+        if (!controller.signal.aborted) setErro("Não foi possível carregar a foto.");
+      }
+    })();
+    return () => controller.abort();
+  }, [token, perfilId, versaoFoto]);
+
+  useEffect(() => () => {
+    if (fotoRef.current) URL.revokeObjectURL(fotoRef.current);
+    fotoRef.current = null;
+  }, []);
+
+  async function alterarFoto(event: ChangeEvent<HTMLInputElement>) {
     const arquivo = event.target.files?.[0];
-
-    if (!arquivo) return;
-
-    if (!arquivo.type.startsWith("image/")) {
-      alert("Selecione um arquivo de imagem válido.");
-      event.target.value = "";
+    event.target.value = "";
+    if (!arquivo || !token || salvando) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(arquivo.type)) {
+      setErro("Selecione uma foto JPEG, PNG ou WebP.");
       return;
     }
-
-    if (arquivo.size > 5 * 1024 * 1024) {
-      alert("A imagem deve ter no máximo 5 MB.");
-      event.target.value = "";
+    if (arquivo.size > 2 * 1024 * 1024) {
+      setErro("A imagem deve ter no máximo 2 MB.");
       return;
     }
+    setSalvando(true);
+    setErro("");
+    try {
+      const resposta = await fetch("/api/users/me/avatar", {
+        method: "PUT",
+        headers: { Authorization: "Bearer " + token, "Content-Type": arquivo.type },
+        body: arquivo,
+      });
+      if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => null);
+        throw new Error(dados?.mensagem || "Não foi possível salvar a foto.");
+      }
+      setVersaoFoto(v => v + 1);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível salvar a foto.");
+    } finally {
+      setSalvando(false);
+    }
+  }
 
-    const novaFoto = URL.createObjectURL(arquivo);
-
-    setFotoPreview((fotoAnterior) => {
-      if (fotoAnterior) URL.revokeObjectURL(fotoAnterior);
-      return novaFoto;
-    });
+  async function removerFoto() {
+    if (!token || salvando) return;
+    setSalvando(true);
+    setErro("");
+    try {
+      const resposta = await fetch("/api/users/me/avatar", {
+        method: "DELETE", headers: { Authorization: "Bearer " + token },
+      });
+      if (!resposta.ok) throw new Error("Não foi possível remover a foto.");
+      if (fotoRef.current) URL.revokeObjectURL(fotoRef.current);
+      fotoRef.current = null;
+      setFotoPreview(null);
+      setVersaoFoto(v => v + 1);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível remover a foto.");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   const perfil: DadosPerfil = dadosPerfil ?? {
@@ -253,6 +330,8 @@ export default function PerfilPage() {
             }}
             editavel
             onAlterarFoto={alterarFoto}
+            onRemoverFoto={removerFoto}
+            salvando={salvando}
           />
         )}
       </div>
