@@ -211,6 +211,7 @@ export default function ChatCliente({
   embutido = false,
   onVoltar,
   participantes = [],
+  nomeGrupo,
 }: {
   id: string;
   tipoConversa?: "privada" | "grupo";
@@ -218,6 +219,7 @@ export default function ChatCliente({
   onVoltar?: () => void;
   adminParticipa?: boolean;
   participantes?: Participante[];
+  nomeGrupo?: string;
 }) {
   const { usuario, token } = useAuth();
 
@@ -276,10 +278,26 @@ export default function ChatCliente({
   const contato = (contatoCarregado?.id === id && contatoCarregado?.token === token &&
     contatoCarregado?.usuarioId === usuario?.id ? contatoCarregado.contato : null) ?? participantes[0] ?? null;
 
+  const [grupoCarregado, setGrupoCarregado] = useState<{ id: string; token: string; nome: string } | null>(null);
+  useEffect(() => {
+    if (tipoConversa !== "grupo" || nomeGrupo || !token || !usuario?.id) return;
+    let cancelado = false;
+    void (async () => {
+      try {
+        const dados = await api(isAdminTI ? "/api/groups" : "/api/my-groups", { method: "GET", token });
+        const grupo = Array.isArray(dados?.grupos) ? dados.grupos.find((g: { id: string }) => g.id === id) : null;
+        if (!cancelado) setGrupoCarregado(grupo?.name ? { id, token, nome: grupo.name } : null);
+      } catch {
+        if (!cancelado) setGrupoCarregado(null);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [tipoConversa, nomeGrupo, id, token, usuario?.id, isAdminTI]);
+
   const nome =
     tipoConversa === "privada"
       ? contato?.nome ?? "Conversa privada"
-      : "Grupo";
+      : nomeGrupo || (grupoCarregado?.id === id && grupoCarregado?.token === token ? grupoCarregado.nome : "Grupo");
 
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [carregandoMensagens, setCarregandoMensagens] = useState(true);
@@ -847,7 +865,8 @@ export default function ChatCliente({
             </p>
           )}
 
-          {!carregandoMensagens && msgs.length === 0 && (
+          {somenteLeitura && aviso && <p className="py-4 text-center text-sm text-red-600">{aviso}</p>}
+          {!carregandoMensagens && !aviso && msgs.length === 0 && (
             <p className="py-6 text-center text-sm text-slate-400">
               Nenhuma mensagem nesta conversa.
             </p>
