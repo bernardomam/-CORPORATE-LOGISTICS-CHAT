@@ -59,7 +59,8 @@ function validarIdentificador(valor, mensagem) {
 async function buscarGrupoDoParticipante(
     tx,
     usuario,
-    grupoId
+    grupoId,
+    permitirConsultaAdmin = false
 ) {
     validarIdentificador(
         grupoId,
@@ -71,12 +72,9 @@ async function buscarGrupoDoParticipante(
             id: grupoId.trim(),
             companyId: usuario.companyId,
             status: 'ACTIVE',
-            members: {
-                some: {
-                    userId: usuario.id,
-                    leftAt: null
-                }
-            }
+            ...(permitirConsultaAdmin && usuario.role === 'IT_ADMIN' ? {} : {
+                members: { some: { userId: usuario.id, leftAt: null } }
+            })
         },
         select: {
             id: true,
@@ -192,7 +190,8 @@ export async function listarMensagensGrupo(
                 await buscarGrupoDoParticipante(
                     tx,
                     usuario,
-                    grupoId
+                    grupoId,
+                    true
                 );
 
             const where={groupId:grupo.id,companyId:usuario.companyId};
