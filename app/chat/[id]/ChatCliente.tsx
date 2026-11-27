@@ -239,9 +239,30 @@ export default function ChatCliente({
 
   const isAdminTI = usuario?.role === "IT_ADMIN";
 
-  // IT_ADMIN sempre consulta conversas privadas e grupos em somente leitura.
-  // A permissão não depende de ele participar ou não do grupo.
-  const somenteLeitura = isAdminTI;
+  // Administradores só escrevem em grupos dos quais são membros ativos.
+  // A API de grupos próprios confirma a participação; o backend revalida cada envio.
+  const [grupoAdminAutorizado, setGrupoAdminAutorizado] = useState<{
+    id: string; token: string;
+  } | null>(null);
+  useEffect(() => {
+    if (!isAdminTI || tipoConversa !== "grupo" || !token) return;
+    let cancelado = false;
+    void (async () => {
+      try {
+        const dados = await api("/api/my-groups", { method: "GET", token });
+        const participa = dados?.sucesso === true && Array.isArray(dados.grupos)
+          && dados.grupos.some((grupo: { id: string }) => grupo.id === id);
+        if (!cancelado) setGrupoAdminAutorizado(participa ? { id, token } : null);
+      } catch {
+        if (!cancelado) setGrupoAdminAutorizado(null);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [isAdminTI, tipoConversa, id, token]);
+  const somenteLeitura = isAdminTI && (
+    tipoConversa !== "grupo" || !token ||
+    grupoAdminAutorizado?.id !== id || grupoAdminAutorizado?.token !== token
+  );
 
   const contato = participantes[0] ?? null;
 
