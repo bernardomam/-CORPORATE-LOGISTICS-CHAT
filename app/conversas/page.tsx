@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import ChatCliente from "../chat/[id]/ChatCliente";
+import AvatarContato from "../comp/AvatarContato";
 import BarraInferior from "../comp/BarraInferior";
 import { useAuth } from "../contextos/AuthContext";
 import { api } from "../lib/api";
@@ -251,12 +252,6 @@ export default function ConversasPage() {
               <ul>
                 {lista.map((conversa) => {
                   const nome = conversa.participante.nome;
-                  const iniciais = nome
-                    .split(" ")
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((parte) => parte.charAt(0).toUpperCase())
-                    .join("");
 
                   return (
                     <li key={conversa.id}>
@@ -264,9 +259,7 @@ export default function ConversasPage() {
                         href={`/chat/${encodeURIComponent(conversa.id)}?tipo=privada`}
                         className="flex items-center gap-3 border-b border-slate-100 px-5 py-4 transition hover:bg-slate-50 active:bg-indigo-50 md:hidden"
                       >
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-base font-bold text-indigo-700">
-                          {iniciais || "U"}
-                        </div>
+                        <AvatarContato id={conversa.participante.id} nome={nome} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-base font-bold text-indigo-700" />
 
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-bold text-slate-800">
@@ -287,9 +280,7 @@ export default function ConversasPage() {
                             : ""
                         }`}
                       >
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-base font-bold text-indigo-700">
-                          {iniciais || "U"}
-                        </div>
+                        <AvatarContato id={conversa.participante.id} nome={nome} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-base font-bold text-indigo-700" />
 
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-bold text-slate-800">
