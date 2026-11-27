@@ -273,7 +273,7 @@ export default function ConversasPage() {
                             {nome}
                           </p>
                           <p className="mt-1 truncate text-xs text-slate-500">
-                            Conversa privada
+                            {conversa.participante.setor || "Setor não informado"}
                           </p>
                         </div>
                       </Link>
@@ -296,7 +296,7 @@ export default function ConversasPage() {
                             {nome}
                           </p>
                           <p className="mt-1 truncate text-xs text-slate-500">
-                            Conversa privada
+                            {conversa.participante.setor || "Setor não informado"}
                           </p>
                         </div>
                       </button>
