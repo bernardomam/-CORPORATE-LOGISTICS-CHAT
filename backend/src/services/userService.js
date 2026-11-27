@@ -292,5 +292,5 @@ export async function reativarUsuario(id, administrador){
 
 export async function listarColegas(usuario){
     if(!usuario?.id||!usuario?.companyId)throw falha(401,'Usuário não autenticado.');
-    return executarComContextoRLS(usuario,tx=>tx.user.findMany({where:{companyId:usuario.companyId,status:'ACTIVE',id:{not:usuario.id}},select:{id:true,name:true,departmentId:true,department:{select:{name:true}}},orderBy:[{name:'asc'},{id:'asc'}]}));
+    return executarComContextoRLS(usuario,tx=>tx.user.findMany({where:{companyId:usuario.companyId,status:'ACTIVE',id:{not:usuario.id}},select:{id:true,name:true,role:true,departmentId:true,department:{select:{name:true}}},orderBy:[{name:'asc'},{id:'asc'}]}));
 }
